@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Report — SimoBS</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="stile.css">
+</head>
+<body>
+  <div class="barra">
+    <h1>Report</h1>
+    <a class="navlink" href="cassa.html">Cassa</a>
+    <a class="navlink" href="report.html">Report</a>
+    <a class="navlink" href="gestione.html">Gestione</a>
+    <div class="spinta">
+      <select id="scelta-serata"></select>
+      <button id="scarica-csv">Esporta CSV</button>
+      <button id="anteprima-chiusura">Anteprima chiusura</button>
+    </div>
+  </div>
+
+  <div class="contenuto stretto">
+    <div class="riquadri" id="riquadri"></div>
+
+    <div class="scheda">
+      <h2>Andamento della serata</h2>
+      <p class="spiega">
+        A che ora incassi davvero. Serve a decidere quanti volontari mettere in
+        cassa e quando accendere la seconda griglia.
+      </p>
+      <table id="tabella-ore"></table>
+    </div>
+
+    <div class="scheda">
+      <h2>Incasso per cassa e per pagamento</h2>
+      <p class="spiega">Quanto deve esserci in ogni cassetto a fine serata.</p>
+      <div class="griglia-campi" style="grid-template-columns:1fr 1fr; align-items:start;">
+        <table id="tabella-casse"></table>
+        <table id="tabella-pagamenti"></table>
+      </div>
+      <div style="margin-top:14px; display:flex; gap:8px; align-items:end; flex-wrap:wrap;">
+        <div class="campo">
+          <label for="cassa-chiusura">Stampa la chiusura sulla stampante di</label>
+          <select id="cassa-chiusura"></select>
+        </div>
+        <button class="bottone-primario" id="stampa-chiusura">Stampa chiusura</button>
+      </div>
+    </div>
+
+    <div class="scheda">
+      <h2>Venduto per reparto</h2>
+      <table id="tabella-reparti"></table>
+    </div>
+
+    <div class="scheda">
+      <h2>Venduto per prodotto</h2>
+      <p class="spiega">
+        Importi al lordo degli sconti: lo sconto si applica all'ordine intero,
+        spalmarlo sulle singole righe darebbe numeri inventati.
+      </p>
+      <table id="tabella-prodotti"></table>
+    </div>
+
+    <div class="scheda">
+      <h2>Consumo di magazzino</h2>
+      <p class="spiega">
+        Quanto è uscito davvero dal magazzino, ricavato dai movimenti registrati.
+        Confrontalo con l'inventario fisico per scoprire cali e ammanchi.
+      </p>
+      <table id="tabella-consumo"></table>
+    </div>
+
+    <div class="scheda">
+      <h2>Confronto tra serate ed edizioni</h2>
+      <p class="spiega">La vista storica: com'è andata rispetto alle altre volte.</p>
+      <table id="tabella-confronto"></table>
+      <div style="height:14px"></div>
+      <table id="tabella-edizioni"></table>
+    </div>
+
+    <div class="scheda" id="scheda-anteprima" style="display:none;">
+      <h2>Anteprima della chiusura</h2>
+      <p class="spiega">Esattamente come uscirà dalla stampante termica.</p>
+      <pre class="anteprima" id="testo-anteprima"></pre>
+    </div>
+  </div>
+
+  <div id="messaggi"></div>
+  <script type="module" src="report.js"></script>
+</body>
+</html>

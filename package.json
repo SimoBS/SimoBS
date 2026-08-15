@@ -1,0 +1,16 @@
+{
+  "name": "simobs",
+  "version": "0.1.0",
+  "description": "Gestionale offline per stand gastronomico e festa della birra: cassa, comande, magazzino, report",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node --no-warnings src/server.js",
+    "seed": "node --no-warnings src/seed.js",
+    "seed:reset": "node --no-warnings src/seed.js --reset",
+    "test": "node --no-warnings --test \"test/*.test.js\""
+  }
+}

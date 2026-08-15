@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Cassa — SimoBS</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="stile.css">
+</head>
+<body>
+  <div class="barra">
+    <h1 id="titolo-festa">SimoBS</h1>
+    <span class="serata" id="etichetta-serata"></span>
+    <a class="navlink" href="cassa.html">Cassa</a>
+    <a class="navlink" href="report.html">Report</a>
+    <a class="navlink" href="gestione.html">Gestione</a>
+    <div class="spinta">
+      <select id="scelta-cassa" title="Postazione di cassa"></select>
+      <input id="operatore" placeholder="Chi è in cassa" size="14" autocomplete="off">
+      <span class="stato-rete"><i class="pallino" id="pallino"></i><span id="etichetta-rete">collegato</span></span>
+    </div>
+  </div>
+
+  <div id="avviso-serata" class="avviso grave" style="display:none; margin:12px 16px 0;"></div>
+
+  <div class="cassa">
+    <div class="catalogo">
+      <div class="categorie" id="categorie"></div>
+      <div class="prodotti" id="prodotti"></div>
+    </div>
+
+    <div class="scontrino">
+      <div class="righe" id="righe"></div>
+      <div class="totali">
+        <div class="griglia-campi" style="grid-template-columns:1fr 1fr;">
+          <div class="campo">
+            <label for="sconto">Sconto €</label>
+            <input id="sconto" inputmode="decimal" value="0" autocomplete="off">
+          </div>
+          <div class="campo">
+            <label for="coperti">Coperti</label>
+            <input id="coperti" inputmode="numeric" value="0" autocomplete="off">
+          </div>
+        </div>
+        <input id="nota-ordine" placeholder="Nota per i reparti (facoltativa)" autocomplete="off">
+        <div class="pagamenti" id="pagamenti"></div>
+        <div class="totale-grande"><span>Totale</span><span id="totale">0,00</span></div>
+        <div class="azioni">
+          <button class="bottone-rosso" id="svuota">Svuota</button>
+          <button class="bottone-verde incassa" id="incassa">INCASSA</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="brindisi">
+    <div class="etichetta">Comanda numero</div>
+    <div class="numero" id="brindisi-numero">0</div>
+    <div class="totale" id="brindisi-totale"></div>
+    <div class="nota">Tocca lo schermo per continuare</div>
+  </div>
+
+  <div id="messaggi"></div>
+  <script type="module" src="cassa.js"></script>
+</body>
+</html>

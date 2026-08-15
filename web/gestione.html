@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestione — SimoBS</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="stile.css">
+</head>
+<body>
+  <div class="barra">
+    <h1>Gestione</h1>
+    <a class="navlink" href="cassa.html">Cassa</a>
+    <a class="navlink" href="report.html">Report</a>
+    <a class="navlink" href="gestione.html">Gestione</a>
+  </div>
+
+  <div class="contenuto stretto">
+    <div id="avvisi"></div>
+
+    <div class="scheda">
+      <h2>Serata</h2>
+      <p class="spiega">
+        Tutto viene raggruppato per serata, non per data: una festa che finisce
+        alle due di notte resta una serata sola e la numerazione delle comande
+        non riparte a mezzanotte. L'edizione (es. <em>2026</em>) serve a
+        confrontare gli anni fra loro nei report.
+      </p>
+      <div id="serata-corrente"></div>
+      <div class="griglia-campi" style="margin-top:12px;">
+        <div class="campo"><label for="serata-nome">Nome</label><input id="serata-nome" placeholder="Sabato 15 agosto"></div>
+        <div class="campo"><label for="serata-data">Data</label><input id="serata-data" type="date"></div>
+        <div class="campo"><label for="serata-edizione">Edizione</label><input id="serata-edizione" placeholder="2026"></div>
+        <button class="bottone-primario" id="apri-serata">Apri serata</button>
+      </div>
+    </div>
+
+    <div class="scheda">
+      <h2>Stampanti</h2>
+      <p class="spiega">
+        Indirizzo IP e porta di ogni stampante termica di rete (quasi sempre la
+        porta 9100). Un reparto <strong>senza indirizzo non stampa nulla</strong>,
+        ed è una scelta legittima: il bar che serve al banco non ha bisogno di
+        comande. Fai sempre una stampa di prova prima di aprire i cancelli.
+      </p>
+      <h3 style="font-size:0.95rem;">Reparti</h3>
+      <table id="tabella-reparti"></table>
+      <h3 style="font-size:0.95rem; margin-top:20px;">Casse</h3>
+      <table id="tabella-casse"></table>
+    </div>
+
+    <div class="scheda">
+      <h2>Coda di stampa</h2>
+      <p class="spiega">
+        La coda sta su disco: se il PC si riavvia a metà serata le comande non
+        ancora uscite ripartono da sole. Qui vedi cosa non è riuscito a stampare
+        e puoi rimandarlo.
+      </p>
+      <div class="riquadri" id="riquadri-coda"></div>
+      <table id="tabella-problemi"></table>
+    </div>
+
+    <div class="scheda">
+      <h2>Ordini recenti</h2>
+      <p class="spiega">
+        Lo storno ricarica il magazzino e manda ai reparti una comanda di
+        annullamento: se la salamella è già sulla griglia, il cuoco deve saperlo.
+      </p>
+      <table id="tabella-ordini"></table>
+    </div>
+
+    <div class="scheda">
+      <h2>Magazzino</h2>
+      <p class="spiega">
+        Le scorte non bloccano mai una vendita: servono ad avvisarti che le
+        salamelle stanno finendo, non a fermare la cassa. <em>Carico</em> aggiunge
+        quello che arriva, <em>Inventario</em> imposta la quantità che hai
+        contato davvero.
+      </p>
+      <table id="tabella-magazzino"></table>
+      <div class="griglia-campi" style="margin-top:14px;">
+        <div class="campo"><label for="nuovo-articolo">Nuovo articolo</label><input id="nuovo-articolo" placeholder="Fusto IPA"></div>
+        <div class="campo"><label for="nuova-unita">Unità</label><input id="nuova-unita" value="pz"></div>
+        <div class="campo"><label for="nuova-soglia">Soglia di allarme</label><input id="nuova-soglia" inputmode="decimal" value="0"></div>
+        <button id="aggiungi-articolo">Aggiungi</button>
+      </div>
+    </div>
+
+    <div class="scheda">
+      <h2>Prodotti</h2>
+      <p class="spiega">
+        Il <em>nome per la comanda</em> è quello abbreviato che legge il cuoco.
+        La <em>distinta base</em> dice quanto magazzino consuma ogni pezzo
+        venduto: una media da 0,4L scarica 0,4 litri di fusto e un bicchiere.
+      </p>
+      <table id="tabella-prodotti"></table>
+
+      <h3 style="font-size:0.95rem; margin-top:22px;" id="titolo-form">Nuovo prodotto</h3>
+      <div class="griglia-campi">
+        <div class="campo"><label for="p-nome">Nome</label><input id="p-nome"></div>
+        <div class="campo"><label for="p-comanda">Nome per la comanda</label><input id="p-comanda"></div>
+        <div class="campo"><label for="p-categoria">Categoria</label><select id="p-categoria"></select></div>
+        <div class="campo"><label for="p-reparto">Reparto</label><select id="p-reparto"></select></div>
+        <div class="campo"><label for="p-prezzo">Prezzo €</label><input id="p-prezzo" inputmode="decimal" value="0,00"></div>
+        <div class="campo"><label for="p-ordine">Posizione</label><input id="p-ordine" inputmode="numeric" value="0"></div>
+        <div class="campo">
+          <label for="p-attivo">In vendita</label>
+          <select id="p-attivo"><option value="1">sì</option><option value="0">no</option></select>
+        </div>
+      </div>
+      <div id="editor-distinta" style="margin-top:16px;"></div>
+      <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="bottone-primario" id="salva-prodotto">Salva prodotto</button>
+        <button id="nuovo-prodotto">Svuota il modulo</button>
+        <button class="bottone-rosso" id="elimina-prodotto" style="display:none;">Elimina</button>
+      </div>
+    </div>
+
+    <div class="scheda">
+      <h2>Categorie e reparti</h2>
+      <p class="spiega">Le categorie sono i gruppi di tasti in cassa. I reparti sono le stampanti di destinazione.</p>
+      <div class="griglia-campi" style="grid-template-columns:1fr 1fr; align-items:start;">
+        <div>
+          <table id="tabella-categorie"></table>
+          <div class="griglia-campi" style="margin-top:10px;">
+            <div class="campo"><label for="nuova-categoria">Nuova categoria</label><input id="nuova-categoria"></div>
+            <div class="campo"><label for="nuovo-colore">Colore</label><input id="nuovo-colore" type="color" value="#d98324"></div>
+            <button id="aggiungi-categoria">Aggiungi</button>
+          </div>
+        </div>
+        <div>
+          <table id="tabella-elenco-reparti"></table>
+          <div class="griglia-campi" style="margin-top:10px;">
+            <div class="campo"><label for="nuovo-reparto">Nuovo reparto</label><input id="nuovo-reparto"></div>
+            <button id="aggiungi-reparto">Aggiungi</button>
+          </div>
+          <div class="griglia-campi" style="margin-top:10px;">
+            <div class="campo"><label for="nuova-cassa">Nuova cassa</label><input id="nuova-cassa"></div>
+            <button id="aggiungi-cassa">Aggiungi</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scheda">
+      <h2>Impostazioni</h2>
+      <p class="spiega">
+        La larghezza della carta è in caratteri: 48 per le stampanti da 80mm,
+        32 per quelle da 58mm. Se le comande escono a capo dove non dovrebbero,
+        è quasi sempre questo il motivo.
+      </p>
+      <div class="griglia-campi">
+        <div class="campo"><label for="c-nome">Nome della festa</label><input id="c-nome"></div>
+        <div class="campo"><label for="c-porta">Porta del server</label><input id="c-porta" inputmode="numeric"></div>
+        <div class="campo"><label for="c-colonne">Larghezza carta (caratteri)</label><input id="c-colonne" inputmode="numeric"></div>
+        <div class="campo">
+          <label for="c-scontrino">Scontrino per il cliente</label>
+          <select id="c-scontrino"><option value="1">sì</option><option value="0">no</option></select>
+        </div>
+        <button class="bottone-primario" id="salva-config">Salva</button>
+      </div>
+      <p class="spiega" style="margin:12px 0 0;">
+        Il cambio di porta ha effetto al prossimo avvio del programma.
+      </p>
+
+      <h3 style="font-size:0.95rem; margin-top:22px;">Copia di sicurezza</h3>
+      <p class="spiega">
+        Fai una copia a metà serata e una a fine serata. Il file finisce in
+        <code>dati/backup/</code>: copialo su una chiavetta prima di smontare
+        tutto. La copia si può fare a casse aperte, senza fermare niente.
+      </p>
+      <button id="fai-backup">Copia il database adesso</button>
+      <div id="esito-backup" class="spiega" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <div id="messaggi"></div>
+  <script type="module" src="gestione.js"></script>
+</body>
+</html>

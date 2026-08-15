@@ -1,0 +1,252 @@
+import { db, backup } from './db.js';
+import { config, salvaConfig } from './config.js';
+import * as anagrafica from './anagrafica.js';
+import * as magazzino from './magazzino.js';
+import * as report from './report.js';
+import { creaOrdine, annullaOrdine, dettaglioOrdine, ultimiOrdini, ErroreOrdine } from './ordini.js';
+import {
+  accoda, statoCoda, ristampa, ristampaOrdine, documentoDiProva, euro,
+} from './stampa.js';
+import { versoTesto } from './escpos.js';
+
+export class ErroreRichiesta extends Error {
+  constructor(messaggio, stato = 400) {
+    super(messaggio);
+    this.stato = stato;
+  }
+}
+
+const rotte = [];
+const rotta = (metodo, schema, gestore) => rotte.push({ metodo, schema, gestore });
+
+/** Confronta un percorso con uno schema tipo "/api/ordini/:id/annulla". */
+function combacia(schema, percorso) {
+  const a = schema.split('/');
+  const b = percorso.split('/');
+  if (a.length !== b.length) return null;
+  const parametri = {};
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].startsWith(':')) parametri[a[i].slice(1)] = decodeURIComponent(b[i]);
+    else if (a[i] !== b[i]) return null;
+  }
+  return parametri;
+}
+
+export function trovaRotta(metodo, percorso) {
+  for (const r of rotte) {
+    if (r.metodo !== metodo) continue;
+    const parametri = combacia(r.schema, percorso);
+    if (parametri) return { gestore: r.gestore, parametri };
+  }
+  return null;
+}
+
+const intero = (v, predefinito = null) => {
+  if (v === undefined || v === null || v === '') return predefinito;
+  const n = Number(v);
+  if (!Number.isFinite(n)) throw new ErroreRichiesta(`valore numerico non valido: ${v}`);
+  return Math.trunc(n);
+};
+
+function serataRichiesta(query, parametri) {
+  const id = intero(parametri?.serataId ?? query.get('serataId'));
+  if (id) return id;
+  const aperta = anagrafica.serataAperta();
+  if (!aperta) throw new ErroreRichiesta('nessuna serata aperta e nessuna serata indicata');
+  return aperta.id;
+}
+
+// ---------------------------------------------------------------------------
+// Stato generale
+// ---------------------------------------------------------------------------
+
+rotta('GET', '/api/stato', () => ({
+  festa: config.nomeFesta,
+  serata: anagrafica.serataAperta() ?? null,
+  casse: anagrafica.listaCasse().filter((c) => c.attiva),
+  coda: statoCoda(),
+  allarmiScorte: magazzino.allarmiScorte(),
+}));
+
+rotta('GET', '/api/menu', () => anagrafica.menuCassa());
+
+// ---------------------------------------------------------------------------
+// Serate
+// ---------------------------------------------------------------------------
+
+rotta('GET', '/api/serate', () => anagrafica.listaSerate());
+
+rotta('POST', '/api/serate', (ctx) => {
+  const { nome, data, edizione } = ctx.corpo;
+  if (!nome || !data) throw new ErroreRichiesta('nome e data sono obbligatori');
+  return anagrafica.apriSerata({ nome, data, edizione: edizione ?? '' });
+});
+
+rotta('POST', '/api/serate/:id/chiudi', (ctx) => anagrafica.chiudiSerata(intero(ctx.parametri.id)));
+
+// ---------------------------------------------------------------------------
+// Ordini
+// ---------------------------------------------------------------------------
+
+rotta('POST', '/api/ordini', (ctx) => creaOrdine(ctx.corpo));
+
+rotta('GET', '/api/ordini', (ctx) => ultimiOrdini({
+  serataId: serataRichiesta(ctx.query),
+  limite: intero(ctx.query.get('limite'), 40),
+}));
+
+rotta('GET', '/api/ordini/:id', (ctx) => {
+  const o = dettaglioOrdine(intero(ctx.parametri.id));
+  if (!o) throw new ErroreRichiesta('ordine inesistente', 404);
+  return o;
+});
+
+rotta('POST', '/api/ordini/:id/annulla', (ctx) => annullaOrdine(intero(ctx.parametri.id), ctx.corpo.motivo ?? ''));
+
+rotta('POST', '/api/ordini/:id/ristampa', (ctx) => ({
+  documenti: ristampaOrdine(intero(ctx.parametri.id)),
+}));
+
+// ---------------------------------------------------------------------------
+// Anagrafica
+// ---------------------------------------------------------------------------
+
+rotta('GET', '/api/anagrafica', () => ({
+  casse: anagrafica.listaCasse(),
+  reparti: anagrafica.listaReparti(),
+  categorie: anagrafica.listaCategorie(),
+  prodotti: anagrafica.listaProdotti(),
+  articoli: magazzino.listaArticoli(),
+}));
+
+rotta('POST', '/api/casse', (ctx) => anagrafica.salvaCassa(ctx.corpo));
+rotta('POST', '/api/reparti', (ctx) => anagrafica.salvaReparto(ctx.corpo));
+rotta('POST', '/api/categorie', (ctx) => anagrafica.salvaCategoria(ctx.corpo));
+rotta('POST', '/api/prodotti', (ctx) => anagrafica.salvaProdotto(ctx.corpo));
+rotta('POST', '/api/articoli', (ctx) => anagrafica.salvaArticolo(ctx.corpo));
+rotta('DELETE', '/api/prodotti/:id', (ctx) => anagrafica.eliminaProdotto(intero(ctx.parametri.id)));
+
+rotta('GET', '/api/prodotti/:id/distinta', (ctx) => anagrafica.distintaProdotto(intero(ctx.parametri.id)));
+rotta('POST', '/api/prodotti/:id/distinta', (ctx) =>
+  anagrafica.impostaDistinta(intero(ctx.parametri.id), ctx.corpo.voci ?? []));
+
+// ---------------------------------------------------------------------------
+// Magazzino
+// ---------------------------------------------------------------------------
+
+rotta('GET', '/api/magazzino', () => magazzino.listaArticoli());
+
+rotta('POST', '/api/magazzino/carico', (ctx) => magazzino.carica({
+  articoloId: intero(ctx.corpo.articoloId),
+  quantita: Number(ctx.corpo.quantita),
+  nota: ctx.corpo.nota ?? '',
+}));
+
+rotta('POST', '/api/magazzino/rettifica', (ctx) => magazzino.rettifica({
+  articoloId: intero(ctx.corpo.articoloId),
+  giacenzaReale: Number(ctx.corpo.giacenzaReale),
+  nota: ctx.corpo.nota ?? '',
+}));
+
+rotta('GET', '/api/magazzino/movimenti', (ctx) => magazzino.movimenti({
+  articoloId: intero(ctx.query.get('articoloId')),
+  limite: intero(ctx.query.get('limite'), 200),
+}));
+
+// ---------------------------------------------------------------------------
+// Report
+// ---------------------------------------------------------------------------
+
+rotta('GET', '/api/report', (ctx) => {
+  const r = report.reportCompleto(serataRichiesta(ctx.query));
+  if (!r) throw new ErroreRichiesta('serata inesistente', 404);
+  return r;
+});
+
+rotta('GET', '/api/report/confronto', () => ({
+  serate: report.confrontoSerate(),
+  edizioni: report.confrontoEdizioni(),
+}));
+
+rotta('GET', '/api/report/chiusura-cassa', (ctx) => report.chiusuraCassa(
+  serataRichiesta(ctx.query),
+  intero(ctx.query.get('cassaId')),
+));
+
+rotta('GET', '/api/report/chiusura/anteprima', (ctx) => ({
+  testo: versoTesto(report.documentoChiusura(serataRichiesta(ctx.query))),
+}));
+
+rotta('POST', '/api/report/chiusura/stampa', (ctx) => {
+  const serataId = serataRichiesta(ctx.query);
+  const destinazioneId = intero(ctx.corpo.cassaId);
+  if (!destinazioneId) throw new ErroreRichiesta('indica su quale cassa stampare la chiusura');
+  const id = accoda({
+    destinazioneTipo: 'cassa',
+    destinazioneId,
+    tipo: 'chiusura',
+    descrizione: `Chiusura serata ${serataId}`,
+    documento: report.documentoChiusura(serataId),
+  });
+  return { stampaId: id };
+});
+
+/** Esportazione CSV del venduto, per chi vuole finire il lavoro in un foglio. */
+rotta('GET', '/api/report/csv', (ctx) => {
+  const serataId = serataRichiesta(ctx.query);
+  const righe = report.vendutoPerProdotto(serataId);
+  const csv = [
+    'prodotto;categoria;reparto;pezzi;lordo_euro',
+    ...righe.map((r) => [
+      r.nome, r.categoria ?? '', r.reparto, r.pezzi, euro(r.lordo_cent),
+    ].join(';')),
+  ].join('\r\n');
+  return {
+    _grezzo: true,
+    tipoContenuto: 'text/csv; charset=utf-8',
+    intestazioni: { 'Content-Disposition': `attachment; filename="venduto-serata-${serataId}.csv"` },
+    // BOM: senza, Excel in italiano sbaglia gli accenti.
+    corpo: '﻿' + csv,
+  };
+});
+
+// ---------------------------------------------------------------------------
+// Stampa
+// ---------------------------------------------------------------------------
+
+rotta('GET', '/api/stampe', () => statoCoda());
+
+rotta('GET', '/api/stampe/:id/anteprima', (ctx) => {
+  const s = db.prepare('SELECT anteprima, descrizione FROM stampe WHERE id = ?').get(intero(ctx.parametri.id));
+  if (!s) throw new ErroreRichiesta('stampa inesistente', 404);
+  return s;
+});
+
+rotta('POST', '/api/stampe/:id/ristampa', (ctx) => ({ ok: ristampa(intero(ctx.parametri.id)) }));
+
+rotta('POST', '/api/stampe/prova', (ctx) => {
+  const tipo = ctx.corpo.destinazioneTipo === 'cassa' ? 'cassa' : 'reparto';
+  const id = intero(ctx.corpo.destinazioneId);
+  const dest = tipo === 'cassa'
+    ? db.prepare('SELECT nome FROM casse WHERE id = ?').get(id)
+    : db.prepare('SELECT nome FROM reparti WHERE id = ?').get(id);
+  if (!dest) throw new ErroreRichiesta('destinazione inesistente', 404);
+  const stampaId = accoda({
+    destinazioneTipo: tipo,
+    destinazioneId: id,
+    tipo: 'prova',
+    descrizione: `Prova ${dest.nome}`,
+    documento: documentoDiProva(dest.nome),
+  });
+  return { stampaId };
+});
+
+// ---------------------------------------------------------------------------
+// Configurazione
+// ---------------------------------------------------------------------------
+
+rotta('GET', '/api/config', () => config);
+rotta('POST', '/api/config', (ctx) => salvaConfig(ctx.corpo));
+rotta('POST', '/api/backup', () => backup());
+
+export { ErroreOrdine };

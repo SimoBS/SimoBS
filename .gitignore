@@ -1,0 +1,12 @@
+# Dati della festa: database, configurazione locale, backup.
+# Non finiscono mai su git: contengono gli incassi reali.
+dati/
+*.db
+*.db-wal
+*.db-shm
+backup/
+
+node_modules/
+npm-debug.log*
+.DS_Store
+Thumbs.db

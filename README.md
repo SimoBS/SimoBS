@@ -32,6 +32,36 @@ stesso modo:
 Quattro postazioni di cassa, ognuna con la sua termica attaccata, e due sole
 stampanti di rete condivise da tutte: Cucina e Bar.
 
+### Un solo database, su un solo PC
+
+Il database sta **solo sul PC server**. Le quattro casse non ne hanno una copia:
+sono browser che parlano con quello. È questa la ragione per cui la numerazione
+delle comande è progressiva su tutta la festa e non per singola cassa — il
+numero non lo sceglie la cassa, lo assegna il server dentro la stessa
+transazione che registra la vendita, quindi due casse non possono ricevere lo
+stesso numero nemmeno battendo nello stesso istante.
+
+Il numero riparte da 1 a ogni nuova serata: al cliente si consegna un "42",
+non un "1247". I report restano confrontabili perché sono raggruppati per
+serata.
+
+### Quale PC fa da server
+
+**Un PC dedicato**, che non sia una cassa, è la scelta migliore: nessuno lo
+tocca, nessuno lo chiude per sbaglio, e ci puoi tenere aperta la pagina di
+gestione per sorvegliare coda di stampa e scorte.
+
+**Una delle quattro casse può fare anche da server**, se un quinto computer non
+c'è. Su quel PC lanci sia `avvia.bat` (il server) sia `avvia-cassa.bat`, in
+quest'ultimo mettendo `set SERVER=http://localhost:8080`. Funziona, ma tienilo
+presente: se quel computer si blocca o qualcuno lo chiude, si fermano **tutte e
+quattro** le casse, non solo la sua. Se devi scegliere, fai da server la cassa
+meno affollata.
+
+In entrambi i casi il PC server è il punto singolo di guasto della serata.
+Costa poco proteggerlo: un gruppo di continuità, e la copia di sicurezza
+portata via su una chiavetta a metà e a fine serata.
+
 **Comande di reparto** (Cucina e Bar): il server manda i byte ESC/POS
 direttamente alla stampante di rete. Coda persistente, ritenta da sola.
 

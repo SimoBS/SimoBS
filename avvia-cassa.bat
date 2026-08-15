@@ -7,6 +7,9 @@ rem senza che compaia la finestra "Stampa" a ogni cliente.
 rem
 rem PRIMA DI USARLO: metti qui sotto l'indirizzo del PC che fa da server,
 rem quello che compare nella sua finestra nera all'avvio.
+rem
+rem Se QUESTO stesso PC fa anche da server (cioe' ci hai lanciato avvia.bat),
+rem allora usa:   set SERVER=http://localhost:8080
 
 set SERVER=http://192.168.1.10:8080
 

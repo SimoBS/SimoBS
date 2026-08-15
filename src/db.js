@@ -191,6 +191,32 @@ const MIGRAZIONI = [
     WHERE stampante_host IS NOT NULL AND stampante_host <> '';
     `,
   },
+  {
+    id: '003-avanzamento-reparti',
+    sql: `
+    -- Stato di preparazione di un ordine, reparto per reparto.
+    --
+    -- Serve a sincronizzare cucina e bar: un ordine si chiama al cliente solo
+    -- quando TUTTI i reparti coinvolti hanno finito, altrimenti la birra
+    -- aspetta otto minuti la griglia e arriva calda. Alle postazioni di
+    -- reparto c'è un PC con la pistola: si legge il codice a barre della
+    -- comanda e quella riga passa a 'pronto'.
+    CREATE TABLE avanzamento (
+      ordine_id  INTEGER NOT NULL REFERENCES ordini(id) ON DELETE CASCADE,
+      reparto_id INTEGER NOT NULL REFERENCES reparti(id),
+      stato      TEXT    NOT NULL DEFAULT 'da_fare',
+      pronto_il  TEXT,
+      operatore  TEXT    NOT NULL DEFAULT '',
+      PRIMARY KEY (ordine_id, reparto_id)
+    );
+    CREATE INDEX idx_avanzamento_reparto ON avanzamento(reparto_id, stato);
+
+    -- Gli ordini già registrati prima di questa modifica ricevono le loro
+    -- righe di avanzamento, ricavate da quali reparti li hanno lavorati.
+    INSERT INTO avanzamento (ordine_id, reparto_id, stato)
+    SELECT DISTINCT ordine_id, reparto_id, 'da_fare' FROM righe;
+    `,
+  },
 ];
 
 function applicaMigrazioni() {

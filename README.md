@@ -108,8 +108,50 @@ All'avvio la finestra stampa gli indirizzi da aprire sulle casse, tipo
 | Pagina | A cosa serve |
 |---|---|
 | `/cassa.html` | La cassa. È la pagina iniziale. |
+| `/reparto.html` | Postazione di Cucina o Bar, con la pistola del codice a barre. |
+| `/chiamate.html` | Monitor dei numeri pronti, da mettere su un televisore. |
 | `/gestione.html` | Serate, prodotti, prezzi, stampanti, magazzino, storni. |
 | `/report.html` | Incassi, andamento orario, venduto, confronto fra edizioni. |
+
+## Sincronizzare cucina e bar
+
+Un ordine misto viene lavorato da due reparti che non si vedono fra loro. Se
+ognuno consegna appena ha finito, la birra arriva subito e il panino dieci
+minuti dopo. Per questo alle postazioni di **Cucina** e **Bar** c'è un PC con
+la pistola del codice a barre.
+
+Ogni comanda e ogni scontrino portano stampato un **Code 39** con
+l'identificativo dell'ordine. Il giro è questo:
+
+1. La cassa incassa. Le comande escono a Cucina e Bar, lo scontrino al cliente.
+2. Ogni reparto prepara la **sua** parte: sulla postazione vede solo la propria
+   roba, la cucina non legge le birre.
+3. Quando ha finito, spara con la pistola sulla comanda (o sullo scontrino del
+   cliente, che porta lo stesso codice).
+4. Il numero compare sul monitor **solo quando tutti i reparti hanno letto**.
+
+La sincronizzazione vera sta in una cosa piccola: ogni postazione vede a che
+punto è l'altra. Un ordine di cui il bar ha già spinato si accende di arancione
+in cucina — quel numero aspetta solo te. Sopra i dieci minuti di attesa diventa
+rosso.
+
+Dettagli che contano:
+
+- Il campo di lettura tiene **sempre** il fuoco: chi è al banco spara e basta,
+  senza toccare mouse o schermo con le mani sporche.
+- Una **seconda lettura non disfa la prima**: le pistole partono da sole e un
+  doppio bip non deve rimettere in lavorazione un ordine già pronto. Per
+  tornare indietro c'è il pulsante *Rimetti in lavorazione*.
+- Il codice contiene l'**identificativo interno**, non il numero di comanda che
+  riparte da 1 ogni serata: una comanda rimasta in tasca da ieri non può far
+  segnare pronto l'ordine di stasera con lo stesso numero. Viene rifiutata con
+  un messaggio chiaro.
+- Se il codice è illeggibile o la carta si è rovinata, ogni ordine ha comunque
+  il pulsante **Segna pronto**.
+- **Code 39** e non Code 128 perché le pistole economiche lo leggono senza
+  doverle configurare, che sotto un tendone è quello che conta. Un test rilegge
+  il codice partendo dal disegno delle barre, per essere sicuri che quello che
+  stampiamo sia quello che la pistola vedrà.
 
 ## Prima della festa
 
@@ -206,6 +248,9 @@ cuoco deve saperlo subito.
 | Accenti sbagliati sulla carta | La stampante non usa CP858: vedi il suo manuale. |
 | La cassa dice "non raggiungibile" | Il PC server è spento, oppure il Wi-Fi è caduto. Gli ordini restano nel browser e partono da soli al ritorno. |
 | Avviso "un altro computer sta incassando su..." | Due PC hanno scelto la stessa postazione: cambiala su uno dei due. L'avviso sparisce da solo entro mezzo minuto. |
+| La pistola non legge il codice | Controlla che la stampante non stia stampando troppo chiaro, e che il lettore abbia il Code 39 abilitato (di solito lo è di serie). Intanto usa il pulsante *Segna pronto*. |
+| La pistola scrive nel posto sbagliato | Il campo di lettura ha perso il fuoco: clicca una volta dentro. Torna da solo dopo ogni lettura. |
+| Un numero non compare sul monitor | Manca ancora un reparto: la postazione lo dice, "manca ancora: Bar". |
 | "Nessuna serata aperta" | *Gestione → Serata → Apri serata*. |
 
 ## Nota fiscale
@@ -219,7 +264,7 @@ ufficiale.
 ## Sviluppo
 
 ```bash
-npm test                          # 58 test: stampa, ordini, magazzino, report
+npm test                          # 81 test: stampa, ordini, magazzino, report, reparti
 node --no-warnings src/seed.js --reset   # riparte da un menu di esempio pulito
 ```
 
@@ -232,6 +277,7 @@ src/
   api.js        rotte JSON
   db.js         schema, migrazioni, backup a caldo
   ordini.js     creazione e storno degli ordini
+  avanzamento.js stato dei reparti su ogni ordine e lettura del codice a barre
   magazzino.js  giacenze, distinta base, movimenti
   report.js     tutte le query dei report
   stampa.js     modelli di comanda e coda di stampa persistente

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Numeri pronti — SimoBS</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="stile.css">
+</head>
+<body class="monitor">
+  <!--
+    Pagina da mettere su un televisore rivolto al pubblico. Compaiono solo gli
+    ordini in cui TUTTI i reparti hanno finito: è il senso della lettura del
+    codice a barre alle postazioni.
+  -->
+  <div class="monitor-testata">
+    <h1 id="titolo-monitor">Numeri pronti</h1>
+    <span class="monitor-ora" id="orologio"></span>
+  </div>
+
+  <div class="numeri-pronti" id="numeri"></div>
+  <p class="monitor-nota" id="nota">In attesa dei primi ordini...</p>
+
+  <script type="module" src="chiamate.js"></script>
+</body>
+</html>

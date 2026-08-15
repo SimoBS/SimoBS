@@ -79,6 +79,52 @@ function allinea(testo, larghezza, come) {
   return testo;
 }
 
+/**
+ * Code 39, solo cifre più i delimitatori.
+ *
+ * Volutamente ridotto alle cifre: nel codice ci finisce il numero dell'ordine e
+ * nient'altro, e una tabella corta è una tabella che non può sbagliare. Code 39
+ * invece di Code 128 perché le pistole economiche lo leggono senza doverle
+ * configurare, che sotto un tendone è quello che conta.
+ *
+ * Ogni carattere sono nove elementi alternati barra/spazio, tre dei quali
+ * larghi; fra un carattere e l'altro uno spazio stretto.
+ */
+const CODE39 = {
+  0: 'nnnwwnwnn', 1: 'wnnwnnnnw', 2: 'nnwwnnnnw', 3: 'wnwwnnnnn', 4: 'nnnwwnnnw',
+  5: 'wnnwwnnnn', 6: 'nnwwwnnnn', 7: 'nnnwnnwnw', 8: 'wnnwnnwnn', 9: 'nnwwnnwnn',
+  '*': 'nnwnwnwnn',
+};
+
+/** Disegna un Code 39 come SVG, per lo scontrino stampato dal browser. */
+export function code39Svg(valore, { moduloMm = 0.33, altezzaMm = 12 } = {}) {
+  const testo = `*${String(valore)}*`;
+  // Zona di silenzio: senza margine bianco ai lati la pistola non aggancia.
+  const silenzio = moduloMm * 10;
+  const barre = [];
+  let x = silenzio;
+
+  for (const carattere of testo) {
+    const schema = CODE39[carattere];
+    if (!schema) throw new Error(`carattere non rappresentabile in Code 39: ${carattere}`);
+    for (let i = 0; i < schema.length; i++) {
+      const larghezza = (schema[i] === 'w' ? 3 : 1) * moduloMm;
+      if (i % 2 === 0) barre.push({ x, larghezza }); // gli indici pari sono barre
+      x += larghezza;
+    }
+    x += moduloMm; // spazio fra un carattere e il successivo
+  }
+
+  const totale = Number((x - moduloMm + silenzio).toFixed(3));
+  const rettangoli = barre
+    .map((b) => `<rect x="${b.x.toFixed(3)}" y="0" width="${b.larghezza.toFixed(3)}" height="${altezzaMm}"/>`)
+    .join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totale}mm" height="${altezzaMm}mm" `
+    + `viewBox="0 0 ${totale} ${altezzaMm}" shape-rendering="crispEdges">`
+    + `<rect width="${totale}" height="${altezzaMm}" fill="#fff"/>`
+    + `<g fill="#000">${rettangoli}</g></svg>`;
+}
+
 /** Costruttore fluente di documenti di stampa. */
 export class Documento {
   constructor(larghezza = 48) {
@@ -103,6 +149,12 @@ export class Documento {
 
   separatore(carattere = '-') {
     this.blocchi.push({ t: 'separatore', carattere });
+    return this;
+  }
+
+  /** Codice a barre da leggere con la pistola alle postazioni di reparto. */
+  codiceABarre(valore) {
+    this.blocchi.push({ t: 'barcode', v: String(valore) });
     return this;
   }
 
@@ -151,6 +203,8 @@ function* righeLogiche(doc) {
       yield { tipo: 'separatore', v: b.carattere.repeat(doc.larghezza) };
     } else if (b.t === 'taglio') {
       yield { tipo: 'taglio', v: '' };
+    } else if (b.t === 'barcode') {
+      yield { tipo: 'barcode', v: b.v };
     } else if (b.t === 'testo') {
       for (const r of spezza(b.v, larghezzaBlocco(doc, b))) {
         yield { tipo: 'testo', v: r, size: b.size ?? 1, bold: !!b.bold, align: b.align ?? 'left' };
@@ -180,6 +234,7 @@ export function versoTesto(doc) {
   const righe = [];
   for (const r of righeLogiche(doc)) {
     if (r.tipo === 'taglio') righe.push('-'.repeat(doc.larghezza - 2) + ' ✂');
+    else if (r.tipo === 'barcode') righe.push(allinea(`|||| ${r.v} ||||`, doc.larghezza, 'center'));
     else if (r.tipo === 'testo') righe.push(allinea(rendiCorpo(r.v, r.size), doc.larghezza, r.align));
     else righe.push(r.v);
   }
@@ -209,6 +264,7 @@ export function versoHtml(doc, { larghezzaMm = 80, margineMm = 4, titolo = 'Scon
 
   const righe = [...righeLogiche(doc)].map((r) => {
     if (r.tipo === 'taglio') return '<div class="taglio"></div>';
+    if (r.tipo === 'barcode') return `<div class="cb">${code39Svg(r.v)}</div>`;
     if (r.tipo === 'vuoto') return '<div class="r">&nbsp;</div>';
     if (r.tipo === 'separatore') return `<div class="r">${fugaHtml(r.v)}</div>`;
     const classi = ['r'];
@@ -242,6 +298,10 @@ export function versoHtml(doc, { larghezzaMm = 80, margineMm = 4, titolo = 'Scon
   .g { font-weight: 700; }
   .centro { text-align: center; }
   .destra { text-align: right; }
+  /* Il codice a barre non va mai riscalato: le larghezze delle barre sono
+     calcolate in millimetri perché la pistola le legga. */
+  .cb { text-align: center; margin: 1.5mm 0; }
+  .cb svg { display: inline-block; }
   /* Il taglio della carta lo fa il driver a fine documento: qui serve solo
      un po' di margine perché la lama non tagli sull'ultima riga. */
   .taglio { height: 6mm; }
@@ -294,6 +354,19 @@ export function versoEscPos(doc) {
       impostaAlign('left');
       raw(ESC, 0x64, 4); // avanza la carta oltre la lama
       raw(GS, 0x56, 0x42, 0x00); // taglio parziale
+    } else if (b.t === 'barcode') {
+      impostaSize(1);
+      impostaBold(false);
+      impostaAlign('center');
+      raw(GS, 0x68, 60); // altezza del codice in punti
+      raw(GS, 0x77, 2); // larghezza del modulo stretto
+      raw(GS, 0x48, 0); // niente cifre sotto: il numero lo stampiamo noi, grande
+      const dati = codificaCp858(b.v);
+      // Funzione B (con lunghezza esplicita): più robusta della variante
+      // terminata da NUL sulle stampanti compatibili. 69 = CODE39.
+      raw(GS, 0x6b, 69, dati.length);
+      pezzi.push(dati);
+      txt('\n');
     } else if (b.t === 'testo') {
       impostaSize(b.size ?? 1);
       impostaBold(!!b.bold);

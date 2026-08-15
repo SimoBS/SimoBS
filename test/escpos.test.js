@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spezza, codificaCp858, Documento, versoTesto, versoEscPos, versoHtml } from '../src/escpos.js';
+import {
+  spezza, codificaCp858, Documento, versoTesto, versoEscPos, versoHtml, code39Svg,
+} from '../src/escpos.js';
 
 test('spezza va a capo senza tagliare le parole', () => {
   assert.deepEqual(spezza('Salamella con patatine fritte', 12), ['Salamella', 'con patatine', 'fritte']);
@@ -89,6 +91,87 @@ test('il corpo del carattere HTML cresce col corpo del blocco', () => {
   const base = Number(html.match(/\.r \{[^}]*font-size: ([\d.]+)mm/)[1]);
   const doppio = Number(html.match(/\.c2 \{ font-size: ([\d.]+)mm/)[1]);
   assert.ok(Math.abs(doppio - base * 2) < 0.01);
+});
+
+test('il Code 39 ha una barra ogni elemento dispari, delimitatori compresi', () => {
+  // "*7*" sono 3 caratteri da 9 elementi: 5 barre per carattere, 15 in tutto.
+  const svg = code39Svg('7');
+  assert.equal((svg.match(/<rect x=/g) ?? []).length, 15);
+});
+
+test('il Code 39 lascia la zona di silenzio ai lati, senza la quale non si legge', () => {
+  const svg = code39Svg('1', { moduloMm: 0.5 });
+  const primaBarra = Number(svg.match(/<rect x="([\d.]+)"/)[1]);
+  assert.equal(primaBarra, 5, 'dieci moduli di margine bianco prima della prima barra');
+});
+
+test('il Code 39 accetta solo cifre: qualunque altra cosa è un errore, non un codice sbagliato', () => {
+  assert.throws(() => code39Svg('12A4'), /non rappresentabile/);
+});
+
+test('barre più larghe producono un codice più largo, in proporzione', () => {
+  const stretto = Number(code39Svg('123', { moduloMm: 0.25 }).match(/width="([\d.]+)mm"/)[1]);
+  const largo = Number(code39Svg('123', { moduloMm: 0.5 }).match(/width="([\d.]+)mm"/)[1]);
+  assert.ok(Math.abs(largo - stretto * 2) < 0.01);
+});
+
+/**
+ * Rilegge un Code 39 dall'SVG come farebbe la pistola: misura le barre e gli
+ * spazi fra loro, li classifica in stretti e larghi e ricostruisce i caratteri.
+ *
+ * È volutamente scritto senza guardare la tabella di codifica, partendo dai
+ * disegni: se la tabella in escpos.js fosse sbagliata, questo lo scoprirebbe.
+ * L'alternativa sarebbe accorgersene la sera della festa, con la pistola che
+ * non aggancia e nessuna idea del perché.
+ */
+function leggiCode39(svg) {
+  const barre = [...svg.matchAll(/<rect x="([\d.]+)" y="0" width="([\d.]+)"/g)]
+    .map((m) => ({ x: Number(m[1]), larghezza: Number(m[2]) }));
+
+  // Sequenza alternata barra/spazio, come la vede un lettore ottico.
+  const elementi = [];
+  barre.forEach((b, i) => {
+    elementi.push(b.larghezza);
+    const successiva = barre[i + 1];
+    if (successiva) elementi.push(Number((successiva.x - (b.x + b.larghezza)).toFixed(3)));
+  });
+
+  const stretto = Math.min(...elementi);
+  const simboli = elementi.map((e) => (e > stretto * 2 ? 'w' : 'n'));
+
+  // Nove elementi per carattere, più lo spazio di separazione fra caratteri.
+  const tabella = {
+    nnnwwnwnn: '0', wnnwnnnnw: '1', nnwwnnnnw: '2', wnwwnnnnn: '3', nnnwwnnnw: '4',
+    wnnwwnnnn: '5', nnwwwnnnn: '6', nnnwnnwnw: '7', wnnwnnwnn: '8', nnwwnnwnn: '9',
+    nnwnwnwnn: '*',
+  };
+  let letto = '';
+  for (let i = 0; i + 9 <= simboli.length; i += 10) {
+    const schema = simboli.slice(i, i + 9).join('');
+    letto += tabella[schema] ?? '?';
+  }
+  return letto;
+}
+
+test('il codice a barre si rilegge davvero: quello che stampiamo è quello che la pistola vedrà', () => {
+  for (const valore of ['1', '42', '1234', '907', '580', '61', '999999']) {
+    assert.equal(leggiCode39(code39Svg(valore)), `*${valore}*`,
+      `il codice a barre di ${valore} non si rilegge correttamente`);
+  }
+});
+
+test('il codice a barre esce in tutte e tre le rese del documento', () => {
+  const doc = new Documento(48);
+  doc.codiceABarre(1234);
+
+  assert.match(versoTesto(doc), /1234/);
+  assert.match(versoHtml(doc), /<svg /);
+
+  const byte = [...versoEscPos(doc)];
+  // GS k 69 = stampa un CODE39 con lunghezza esplicita.
+  const posizione = byte.findIndex((b, i) => b === 0x1d && byte[i + 1] === 0x6b && byte[i + 2] === 69);
+  assert.ok(posizione > 0, 'comando di stampa del codice a barre assente');
+  assert.equal(byte[posizione + 3], 4, 'la lunghezza dichiarata non corrisponde a "1234"');
 });
 
 test('il taglio emette il comando GS V', () => {

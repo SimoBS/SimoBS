@@ -45,6 +45,10 @@ export function comandaReparto({ ordine, righe, reparto, cassa }) {
     doc.testo(`NOTA: ${ordine.nota}`, { bold: true });
     doc.separatore();
   }
+  // Da leggere con la pistola quando la roba è pronta. Sta in fondo perché è
+  // la parte che resta esposta quando la comanda è infilzata sul portacomande.
+  doc.codiceABarre(ordine.id);
+  doc.testo('Leggi il codice quando è pronto', { align: 'center' });
   doc.spazio(1);
   doc.taglio();
   return doc;
@@ -99,7 +103,9 @@ export function scontrinoCliente({ ordine, righe, serata, cassa }) {
   doc.separatore();
   if (ordine.coperti > 0) doc.testo(`Coperti: ${ordine.coperti}`);
   doc.testo(`${cassa?.nome ?? ''}  ${oraDi(ordine.ts)}  ${ordine.pagamento}`, { align: 'center' });
-  doc.spazio(1);
+  // Lo stesso codice della comanda: le postazioni possono leggere anche lo
+  // scontrino che porta il cliente, non solo la propria copia.
+  doc.codiceABarre(ordine.id);
   doc.testo('Documento non fiscale', { align: 'center' });
   doc.spazio(1);
   doc.taglio();

@@ -2,6 +2,7 @@ import { db, adesso, inTransazione } from './db.js';
 import { config } from './config.js';
 import { serataAperta } from './anagrafica.js';
 import { scaricaPerOrdine } from './magazzino.js';
+import { apriAvanzamento } from './avanzamento.js';
 import { accoda, comandaReparto, comandaStorno, scontrinoCliente } from './stampa.js';
 import { versoHtml } from './escpos.js';
 
@@ -177,6 +178,9 @@ export function creaOrdine(dati) {
     }
 
     scaricaPerOrdine(ordineId, daScrivere, -1);
+    // Da questo momento l'ordine è in lavorazione presso i suoi reparti, e la
+    // pistola alla postazione potrà segnarlo pronto.
+    apriAvanzamento(ordineId, daScrivere);
 
     const ordine = leggiOrdine(ordineId);
     accodaDocumentiOrdine({ ordine, righe: daScrivere, serata, cassa });

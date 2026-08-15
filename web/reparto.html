@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Postazione reparto — SimoBS</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="stile.css">
+</head>
+<body>
+  <div class="barra">
+    <h1 id="titolo-reparto">Postazione</h1>
+    <a class="navlink" href="cassa.html">Cassa</a>
+    <a class="navlink" href="reparto.html">Reparto</a>
+    <a class="navlink" href="chiamate.html">Monitor</a>
+    <a class="navlink" href="report.html">Report</a>
+    <a class="navlink" href="gestione.html">Gestione</a>
+    <div class="spinta">
+      <select id="scelta-reparto" title="Quale reparto è questa postazione"></select>
+      <input id="operatore" placeholder="Chi è al banco" size="14" autocomplete="off">
+      <span class="stato-rete"><i class="pallino" id="pallino"></i><span id="etichetta-rete">collegato</span></span>
+    </div>
+  </div>
+
+  <!--
+    La pistola del codice a barre si comporta come una tastiera: digita le
+    cifre e preme Invio. Questo campo resta sempre a fuoco, così si può
+    lavorare senza toccare mouse o schermo, con le mani sporche.
+  -->
+  <div class="lettura">
+    <label for="codice">Leggi il codice a barre della comanda</label>
+    <input id="codice" autocomplete="off" autocapitalize="off" spellcheck="false"
+           placeholder="spara qui con la pistola, oppure digita il codice e premi Invio">
+    <div id="esito-lettura" class="esito"></div>
+  </div>
+
+  <div class="contenuto">
+    <div class="colonne-reparto">
+      <section>
+        <h2>Da preparare <span class="conteggio" id="n-da-fare">0</span></h2>
+        <p class="spiega">
+          I più vecchi in alto. Se l'altro reparto ha già finito, l'ordine è
+          segnato: quel numero aspetta solo te.
+        </p>
+        <div id="da-fare" class="lista-ordini"></div>
+      </section>
+
+      <section>
+        <h2>Fatti, in attesa dell'altro reparto <span class="conteggio" id="n-attesa">0</span></h2>
+        <p class="spiega">
+          La tua parte è pronta ma il cliente non è ancora stato chiamato,
+          perché manca l'altro reparto.
+        </p>
+        <div id="in-attesa" class="lista-ordini"></div>
+
+        <h2 style="margin-top:22px;">Consegnati di recente</h2>
+        <div id="completati" class="lista-ordini"></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="messaggi"></div>
+  <script type="module" src="reparto.js"></script>
+</body>
+</html>

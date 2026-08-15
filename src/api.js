@@ -3,6 +3,7 @@ import { config, salvaConfig } from './config.js';
 import * as anagrafica from './anagrafica.js';
 import * as magazzino from './magazzino.js';
 import * as report from './report.js';
+import * as avanzamento from './avanzamento.js';
 import {
   creaOrdine, annullaOrdine, dettaglioOrdine, ultimiOrdini,
   scontrinoHtmlPerOrdine, ErroreOrdine,
@@ -147,6 +148,38 @@ rotta('POST', '/api/ordini/:id/ristampa', (ctx) => ({
  */
 rotta('GET', '/api/ordini/:id/scontrino', (ctx) => ({
   html: scontrinoHtmlPerOrdine(intero(ctx.parametri.id)),
+}));
+
+// ---------------------------------------------------------------------------
+// Postazioni di reparto (PC con la pistola per il codice a barre)
+// ---------------------------------------------------------------------------
+
+rotta('GET', '/api/reparto/:id/coda', (ctx) =>
+  avanzamento.codaReparto(intero(ctx.parametri.id)));
+
+/** Quello che ha sparato la pistola: un codice a barre letto come testo. */
+rotta('POST', '/api/reparto/:id/scansione', (ctx) => avanzamento.scansiona({
+  codice: ctx.corpo.codice,
+  repartoId: intero(ctx.parametri.id),
+  operatore: ctx.corpo.operatore ?? '',
+}));
+
+/** Stesso effetto della pistola, per quando il codice è illeggibile. */
+rotta('POST', '/api/reparto/:id/pronto', (ctx) => avanzamento.segnaPronto({
+  ordineId: intero(ctx.corpo.ordineId),
+  repartoId: intero(ctx.parametri.id),
+  operatore: ctx.corpo.operatore ?? '',
+}));
+
+rotta('POST', '/api/reparto/:id/riapri', (ctx) => avanzamento.riapri({
+  ordineId: intero(ctx.corpo.ordineId),
+  repartoId: intero(ctx.parametri.id),
+}));
+
+/** Numeri pronti al ritiro, per il monitor rivolto al pubblico. */
+rotta('GET', '/api/chiamate', () => ({
+  festa: config.nomeFesta,
+  ordini: avanzamento.ordiniCompleti({ limite: 20 }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -304,3 +337,4 @@ rotta('POST', '/api/config', (ctx) => salvaConfig(ctx.corpo));
 rotta('POST', '/api/backup', () => backup());
 
 export { ErroreOrdine };
+export const { ErroreScansione } = avanzamento;

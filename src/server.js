@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import os from 'node:os';
 import { RADICE, config } from './config.js';
-import { trovaRotta, ErroreRichiesta, ErroreOrdine } from './api.js';
+import { trovaRotta, ErroreRichiesta, ErroreOrdine, ErroreScansione } from './api.js';
 import { avviaCodaStampa, fermaCodaStampa } from './stampa.js';
 
 const CARTELLA_WEB = join(RADICE, 'web');
@@ -111,6 +111,9 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     if (err instanceof ErroreRichiesta) return json(res, err.stato, { errore: err.message });
     if (err instanceof ErroreOrdine) return json(res, 400, { errore: err.message });
+    // Una lettura sbagliata della pistola è un fatto normale della serata,
+    // non un guasto: torna alla postazione come messaggio, non come errore 500.
+    if (err instanceof ErroreScansione) return json(res, 400, { errore: err.message });
     console.error(`errore su ${req.method} ${percorso}:`, err);
     json(res, 500, { errore: err.message ?? 'errore interno' });
   }

@@ -60,16 +60,46 @@ function serataRichiesta(query, parametri) {
 }
 
 // ---------------------------------------------------------------------------
-// Stato generale
+// Presenza delle postazioni
+//
+// Con quattro PC identici e volontari che si danno il cambio, capita che due
+// postazioni scelgano la stessa cassa nel menu a tendina. Gli scontrini
+// escono comunque giusti, perché li stampa il PC che ha venduto, ma incassi e
+// chiusura di quella cassa finiscono mescolati e te ne accorgi a mezzanotte
+// contando i cassetti.
+//
+// Ogni cassa si annuncia a ogni giro di aggiornamento con un identificativo
+// del proprio browser: se per la stessa cassa se ne presentano due, tutte e
+// due vedono l'avviso. È volutamente in memoria e non su disco: è uno stato
+// del momento, un riavvio del server lo ricostruisce in cinque secondi.
 // ---------------------------------------------------------------------------
 
-rotta('GET', '/api/stato', () => ({
-  festa: config.nomeFesta,
-  serata: anagrafica.serataAperta() ?? null,
-  casse: anagrafica.listaCasse().filter((c) => c.attiva),
-  coda: statoCoda(),
-  allarmiScorte: magazzino.allarmiScorte(),
-}));
+const FINESTRA_PRESENZA_MS = 30_000;
+const presenze = new Map();
+
+function registraPresenza(cassaId, postazione) {
+  if (!cassaId || !postazione) return [];
+  const limite = Date.now() - FINESTRA_PRESENZA_MS;
+  if (!presenze.has(cassaId)) presenze.set(cassaId, new Map());
+  const perCassa = presenze.get(cassaId);
+  perCassa.set(postazione, Date.now());
+  for (const [chiave, visto] of perCassa) if (visto < limite) perCassa.delete(chiave);
+  return [...perCassa.keys()];
+}
+
+rotta('GET', '/api/stato', (ctx) => {
+  const cassaId = intero(ctx.query.get('cassaId'));
+  const attive = registraPresenza(cassaId, ctx.query.get('postazione'));
+  return {
+    festa: config.nomeFesta,
+    serata: anagrafica.serataAperta() ?? null,
+    casse: anagrafica.listaCasse().filter((c) => c.attiva),
+    coda: statoCoda(),
+    allarmiScorte: magazzino.allarmiScorte(),
+    // Più di una postazione sulla stessa cassa: da segnalare subito.
+    postazioniSullaStessaCassa: attive.length,
+  };
+});
 
 rotta('GET', '/api/menu', () => anagrafica.menuCassa());
 

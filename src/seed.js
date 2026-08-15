@@ -33,8 +33,7 @@ const idDi = (info) => Number(info.lastInsertRowid);
 // server non le può raggiungere, le stampa il browser di ogni postazione
 // tramite il driver di Windows. Da qui il modo 'locale'.
 const insCassa = db.prepare('INSERT INTO casse (nome, modo_stampa) VALUES (?, ?)');
-const cassa1 = idDi(insCassa.run('Cassa 1', 'locale'));
-const cassa2 = idDi(insCassa.run('Cassa 2', 'locale'));
+for (const n of [1, 2, 3, 4]) insCassa.run(`Cassa ${n}`, 'locale');
 
 // --- Reparti ---------------------------------------------------------------
 // Due sole stampanti di rete: Cucina e Bar. Gli indirizzi IP si mettono in
@@ -127,7 +126,7 @@ db.prepare('INSERT INTO serate (nome, data, edizione, aperta, aperta_il) VALUES 
 console.log('dati di esempio caricati:');
 console.log(`  ${db.prepare('SELECT COUNT(*) AS n FROM prodotti').get().n} prodotti`);
 console.log(`  ${db.prepare('SELECT COUNT(*) AS n FROM articoli').get().n} articoli di magazzino`);
-console.log(`  2 casse (scontrino stampato in locale), 2 reparti di rete, 1 serata aperta`);
+console.log(`  4 casse (scontrino stampato in locale), 2 reparti di rete, 1 serata aperta`);
 console.log('');
 console.log('Cucina e Bar non hanno ancora un indirizzo IP: mettilo in /gestione.html.');
 console.log('Lo scontrino cliente lo stampa il browser di ogni cassa: provalo dal');

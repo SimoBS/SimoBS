@@ -4,6 +4,22 @@ const PAGAMENTI = ['contanti', 'pos', 'gettoni'];
 const CHIAVE_CODA = 'simobs.coda';
 const CHIAVE_CASSA = 'simobs.cassa';
 const CHIAVE_OPERATORE = 'simobs.operatore';
+const CHIAVE_POSTAZIONE = 'simobs.postazione';
+
+/**
+ * Identificativo di QUESTO computer, non della cassa scelta nel menu.
+ * Serve al server per accorgersi se due PC diversi stanno incassando sulla
+ * stessa cassa: sarebbe un guaio scoperto solo a fine serata, contando i
+ * cassetti e trovandone uno vuoto e uno doppio.
+ */
+function idPostazione() {
+  let id = localStorage.getItem(CHIAVE_POSTAZIONE);
+  if (!id) {
+    id = crypto.randomUUID?.() ?? `p-${Date.now()}-${Math.random()}`;
+    localStorage.setItem(CHIAVE_POSTAZIONE, id);
+  }
+  return id;
+}
 
 const stato = {
   menu: [],
@@ -257,8 +273,22 @@ async function incassa() {
 
 async function aggiornaStato() {
   try {
-    const s = await api('/api/stato');
+    const parametri = new URLSearchParams({ postazione: idPostazione() });
+    if (stato.cassaId) parametri.set('cassaId', stato.cassaId);
+    const s = await api(`/api/stato?${parametri}`);
     stato.collegato = true;
+
+    const avvisoPostazione = $('avviso-postazione');
+    if (s.postazioniSullaStessaCassa > 1) {
+      const nome = $('scelta-cassa').selectedOptions[0]?.textContent ?? 'questa cassa';
+      avvisoPostazione.style.display = 'block';
+      avvisoPostazione.textContent =
+        `Attenzione: un altro computer sta incassando su ${nome}. `
+        + 'Uno dei due deve cambiare postazione, altrimenti a fine serata gli '
+        + 'incassi delle due casse risulteranno mescolati.';
+    } else {
+      avvisoPostazione.style.display = 'none';
+    }
 
     $('titolo-festa').textContent = s.festa;
     $('etichetta-serata').textContent = s.serata ? `${s.serata.nome} — ${s.serata.data}` : '';
@@ -298,6 +328,9 @@ async function avvia() {
   $('scelta-cassa').addEventListener('change', (e) => {
     stato.cassaId = Number(e.target.value) || null;
     localStorage.setItem(CHIAVE_CASSA, e.target.value);
+    // Subito, non al prossimo giro: se la postazione appena scelta è già
+    // occupata da un altro PC va detto prima che parta il primo incasso.
+    aggiornaStato();
   });
 
   $('sconto').addEventListener('input', disegnaScontrino);

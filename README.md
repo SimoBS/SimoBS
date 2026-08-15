@@ -25,7 +25,12 @@ stesso modo:
        ▼
    PC Cassa 1 (browser) ──→ scontrino ──→ termica in USB su QUESTO PC
    PC Cassa 2 (browser) ──→ scontrino ──→ termica in USB su QUESTO PC
+   PC Cassa 3 (browser) ──→ scontrino ──→ termica in USB su QUESTO PC
+   PC Cassa 4 (browser) ──→ scontrino ──→ termica in USB su QUESTO PC
 ```
+
+Quattro postazioni di cassa, ognuna con la sua termica attaccata, e due sole
+stampanti di rete condivise da tutte: Cucina e Bar.
 
 **Comande di reparto** (Cucina e Bar): il server manda i byte ESC/POS
 direttamente alla stampante di rete. Coda persistente, ritenta da sola.
@@ -83,12 +88,19 @@ All'avvio la finestra stampa gli indirizzi da aprire sulle casse, tipo
 2. **Comande di reparto.** In *Gestione → Reparti* metti l'IP di Cucina e Bar e
    premi **Prova**. La stampa di prova contiene accenti e simbolo dell'euro: se
    escono caratteri strani, la stampante non è impostata su CP858.
-3. **Scontrini cliente.** Su ogni PC cassa:
+3. **Scontrini cliente.** Su **ciascuno dei quattro** PC cassa:
    - la termica dev'essere la **stampante predefinita** di Windows;
    - apri `avvia-cassa.bat` (dopo averci messo dentro l'indirizzo del server);
+   - scegli in alto la postazione — Cassa 1, 2, 3 o 4 — **una diversa per ogni
+     PC**. La scelta resta memorizzata su quel computer;
    - nella pagina Cassa premi **Prova stampa**. Deve uscire lo scontrino di
      prova **senza** che compaia la finestra "Stampa": se compare, Chrome non è
      partito con `--kiosk-printing` e a ogni cliente qualcuno dovrà cliccare.
+
+   Se due PC scelgono la stessa postazione compare un avviso rosso su
+   entrambi: gli scontrini escono comunque dalla stampante giusta, ma gli
+   incassi di quelle due casse finirebbero mescolati e il conto dei cassetti a
+   fine serata non tornerebbe.
 4. **Larghezza carta.** In *Impostazioni*: 48 caratteri e 80 mm per la carta
    grande, 32 caratteri e 58 mm per quella stretta. È la causa numero uno delle
    comande impaginate male.
@@ -163,6 +175,7 @@ cuoco deve saperlo subito.
 | Comande impaginate male | Larghezza carta in *Impostazioni* (48 o 32 caratteri). |
 | Accenti sbagliati sulla carta | La stampante non usa CP858: vedi il suo manuale. |
 | La cassa dice "non raggiungibile" | Il PC server è spento, oppure il Wi-Fi è caduto. Gli ordini restano nel browser e partono da soli al ritorno. |
+| Avviso "un altro computer sta incassando su..." | Due PC hanno scelto la stessa postazione: cambiala su uno dei due. L'avviso sparisce da solo entro mezzo minuto. |
 | "Nessuna serata aperta" | *Gestione → Serata → Apri serata*. |
 
 ## Nota fiscale
@@ -176,7 +189,7 @@ ufficiale.
 ## Sviluppo
 
 ```bash
-npm test                          # 50 test: stampa, ordini, magazzino, report
+npm test                          # 58 test: stampa, ordini, magazzino, report
 node --no-warnings src/seed.js --reset   # riparte da un menu di esempio pulito
 ```
 

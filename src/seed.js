@@ -29,20 +29,21 @@ if (db.prepare('SELECT COUNT(*) AS n FROM prodotti').get().n > 0) {
 const idDi = (info) => Number(info.lastInsertRowid);
 
 // --- Casse -----------------------------------------------------------------
-// stampante_host vuoto = nessuno scontrino cliente. Da compilare in gestione
-// con l'IP vero delle stampanti quando si monta l'impianto.
-const insCassa = db.prepare('INSERT INTO casse (nome, stampante_host, stampante_porta) VALUES (?, ?, 9100)');
-const cassa1 = idDi(insCassa.run('Cassa 1', null));
-const cassa2 = idDi(insCassa.run('Cassa 2', null));
+// Le termiche degli scontrini sono attaccate in USB ai PC delle casse: il
+// server non le può raggiungere, le stampa il browser di ogni postazione
+// tramite il driver di Windows. Da qui il modo 'locale'.
+const insCassa = db.prepare('INSERT INTO casse (nome, modo_stampa) VALUES (?, ?)');
+const cassa1 = idDi(insCassa.run('Cassa 1', 'locale'));
+const cassa2 = idDi(insCassa.run('Cassa 2', 'locale'));
 
 // --- Reparti ---------------------------------------------------------------
+// Due sole stampanti di rete: Cucina e Bar. Gli indirizzi IP si mettono in
+// Gestione quando si monta l'impianto: senza indirizzo non stampano.
 const insReparto = db.prepare(
   'INSERT INTO reparti (nome, stampante_host, stampante_porta, copie, ordine) VALUES (?, ?, 9100, ?, ?)',
 );
-const spina = idDi(insReparto.run('Spina', null, 1, 1));
-const cucina = idDi(insReparto.run('Cucina', null, 1, 2));
-const griglia = idDi(insReparto.run('Griglia', null, 1, 3));
-const bar = idDi(insReparto.run('Bar', null, 1, 4));
+const cucina = idDi(insReparto.run('Cucina', null, 1, 1));
+const bar = idDi(insReparto.run('Bar', null, 1, 2));
 
 // --- Categorie -------------------------------------------------------------
 const insCategoria = db.prepare('INSERT INTO categorie (nome, colore, ordine) VALUES (?, ?, ?)');
@@ -80,26 +81,26 @@ function prodotto({ nome, comanda, categoria, reparto, prezzo, ordine, consuma =
   return id;
 }
 
-prodotto({ nome: 'Bionda 0,2L', comanda: 'BIONDA piccola', categoria: catBirre, reparto: spina, prezzo: 300, ordine: 1,
+prodotto({ nome: 'Bionda 0,2L', comanda: 'BIONDA piccola', categoria: catBirre, reparto: bar, prezzo: 300, ordine: 1,
   consuma: [[artBionda, 0.2], [artBicchieri, 1]] });
-prodotto({ nome: 'Bionda 0,4L', comanda: 'BIONDA media', categoria: catBirre, reparto: spina, prezzo: 500, ordine: 2,
+prodotto({ nome: 'Bionda 0,4L', comanda: 'BIONDA media', categoria: catBirre, reparto: bar, prezzo: 500, ordine: 2,
   consuma: [[artBionda, 0.4], [artBicchieri, 1]] });
-prodotto({ nome: 'Bionda 1L', comanda: 'BIONDA LITRO', categoria: catBirre, reparto: spina, prezzo: 1100, ordine: 3,
+prodotto({ nome: 'Bionda 1L', comanda: 'BIONDA LITRO', categoria: catBirre, reparto: bar, prezzo: 1100, ordine: 3,
   consuma: [[artBionda, 1], [artBicchieri, 1]] });
-prodotto({ nome: 'Rossa 0,4L', comanda: 'ROSSA media', categoria: catBirre, reparto: spina, prezzo: 550, ordine: 4,
+prodotto({ nome: 'Rossa 0,4L', comanda: 'ROSSA media', categoria: catBirre, reparto: bar, prezzo: 550, ordine: 4,
   consuma: [[artRossa, 0.4], [artBicchieri, 1]] });
-prodotto({ nome: 'Rossa 1L', comanda: 'ROSSA LITRO', categoria: catBirre, reparto: spina, prezzo: 1200, ordine: 5,
+prodotto({ nome: 'Rossa 1L', comanda: 'ROSSA LITRO', categoria: catBirre, reparto: bar, prezzo: 1200, ordine: 5,
   consuma: [[artRossa, 1], [artBicchieri, 1]] });
-prodotto({ nome: 'Weizen 0,4L', comanda: 'WEIZEN media', categoria: catBirre, reparto: spina, prezzo: 600, ordine: 6,
+prodotto({ nome: 'Weizen 0,4L', comanda: 'WEIZEN media', categoria: catBirre, reparto: bar, prezzo: 600, ordine: 6,
   consuma: [[artWeizen, 0.4], [artBicchieri, 1]] });
 
-prodotto({ nome: 'Salamella', comanda: 'SALAMELLA', categoria: catGriglia, reparto: griglia, prezzo: 400, ordine: 1,
+prodotto({ nome: 'Salamella', comanda: 'SALAMELLA', categoria: catGriglia, reparto: cucina, prezzo: 400, ordine: 1,
   consuma: [[artSalamelle, 1], [artPanini, 1]] });
-prodotto({ nome: 'Salamella + patatine', comanda: 'SALAM.+PAT', categoria: catGriglia, reparto: griglia, prezzo: 650, ordine: 2,
+prodotto({ nome: 'Salamella + patatine', comanda: 'SALAM.+PAT', categoria: catGriglia, reparto: cucina, prezzo: 650, ordine: 2,
   consuma: [[artSalamelle, 1], [artPanini, 1], [artPatatine, 1]] });
-prodotto({ nome: 'Costine (etto)', comanda: 'COSTINE', categoria: catGriglia, reparto: griglia, prezzo: 350, ordine: 3,
+prodotto({ nome: 'Costine (etto)', comanda: 'COSTINE', categoria: catGriglia, reparto: cucina, prezzo: 350, ordine: 3,
   consuma: [[artCostine, 0.1]] });
-prodotto({ nome: 'Grigliata mista', comanda: 'GRIGLIATA', categoria: catGriglia, reparto: griglia, prezzo: 1400, ordine: 4,
+prodotto({ nome: 'Grigliata mista', comanda: 'GRIGLIATA', categoria: catGriglia, reparto: cucina, prezzo: 1400, ordine: 4,
   consuma: [[artCostine, 0.3], [artSalamelle, 1]] });
 
 prodotto({ nome: 'Patatine fritte', comanda: 'PATATINE', categoria: catCucina, reparto: cucina, prezzo: 350, ordine: 1,
@@ -126,6 +127,8 @@ db.prepare('INSERT INTO serate (nome, data, edizione, aperta, aperta_il) VALUES 
 console.log('dati di esempio caricati:');
 console.log(`  ${db.prepare('SELECT COUNT(*) AS n FROM prodotti').get().n} prodotti`);
 console.log(`  ${db.prepare('SELECT COUNT(*) AS n FROM articoli').get().n} articoli di magazzino`);
-console.log(`  2 casse, 4 reparti, 1 serata aperta`);
+console.log(`  2 casse (scontrino stampato in locale), 2 reparti di rete, 1 serata aperta`);
 console.log('');
-console.log('Le stampanti NON sono configurate: aprile in /gestione.html e metti gli IP veri.');
+console.log('Cucina e Bar non hanno ancora un indirizzo IP: mettilo in /gestione.html.');
+console.log('Lo scontrino cliente lo stampa il browser di ogni cassa: provalo dal');
+console.log('tasto "Prova stampa" nella pagina Cassa di quel PC.');

@@ -1,4 +1,4 @@
-import { api, euro, inCentesimi, el, messaggio, evidenziaNav } from './comune.js';
+import { api, euro, inCentesimi, el, messaggio, conErrori, evidenziaNav, stampaDalBrowser } from './comune.js';
 
 const PAGAMENTI = ['contanti', 'pos', 'gettoni'];
 const CHIAVE_CODA = 'simobs.coda';
@@ -12,6 +12,7 @@ const stato = {
   pagamento: 'contanti',
   cassaId: null,
   collegato: true,
+  ultimoScontrino: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -52,6 +53,13 @@ async function svuotaCodaLocale() {
       coda = leggiCoda().filter((o) => o.idemKey !== primo.idemKey);
       scriviCoda(coda);
       messaggio(`Ordine in attesa inviato: comanda n. ${esito.numero}`, 'ok');
+      // Lo scontrino di un ordine rimasto in coda non è mai stato stampato:
+      // esce adesso, con il numero che il server gli ha finalmente assegnato.
+      if (esito.scontrinoHtml) {
+        stato.ultimoScontrino = { numero: esito.numero, html: esito.scontrinoHtml };
+        $('ristampa').disabled = false;
+        await stampaDalBrowser(esito.scontrinoHtml);
+      }
     } catch {
       // Ancora irraggiungibile: si riprova al prossimo giro.
       return;
@@ -217,6 +225,14 @@ async function incassa() {
     svuotaCarrello();
     mostraBrindisi(esito.numero, esito.totale_cent);
     aggiornaStatoRete();
+    // Le comande di Cucina e Bar le manda il server alle stampanti di rete.
+    // Lo scontrino del cliente arriva invece qui come HTML, perché la sua
+    // stampante è attaccata a questo PC e solo questo browser la vede.
+    if (esito.scontrinoHtml) {
+      stato.ultimoScontrino = { numero: esito.numero, html: esito.scontrinoHtml };
+      $('ristampa').disabled = false;
+      stampaDalBrowser(esito.scontrinoHtml);
+    }
   } catch (err) {
     // Distinzione importante: un rifiuto del server (prodotto inesistente,
     // serata chiusa) NON va accodato, va mostrato. Solo la rete che cade
@@ -287,6 +303,24 @@ async function avvia() {
   $('sconto').addEventListener('input', disegnaScontrino);
   $('svuota').addEventListener('click', svuotaCarrello);
   $('incassa').addEventListener('click', incassa);
+
+  $('ristampa').addEventListener('click', () => {
+    if (!stato.ultimoScontrino) return;
+    stampaDalBrowser(stato.ultimoScontrino.html);
+    messaggio(`Ristampa scontrino n. ${stato.ultimoScontrino.numero}`, 'ok');
+  });
+
+  // La prova va fatta da qui e non dal pannello di gestione: la stampante è
+  // attaccata a questo PC, il server non la può raggiungere.
+  $('prova-stampante').addEventListener('click', conErrori(async () => {
+    if (!stato.cassaId) throw new Error('Scegli prima la postazione di cassa');
+    const esito = await api('/api/stampe/prova', {
+      method: 'POST',
+      corpo: { destinazioneTipo: 'cassa', destinazioneId: stato.cassaId },
+    });
+    if (esito.html) await stampaDalBrowser(esito.html);
+    else messaggio('Questa cassa stampa in rete: la prova è partita dal server', 'ok');
+  }));
   $('brindisi').addEventListener('click', chiudiBrindisi);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') chiudiBrindisi();

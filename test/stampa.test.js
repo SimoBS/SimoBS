@@ -151,13 +151,13 @@ describe('coda di stampa', () => {
     await finta.chiudi();
   });
 
-  test('lo scontrino cliente esce solo se la cassa ha una stampante', async () => {
+  test('una cassa con stampante di rete riceve lo scontrino dal server', async () => {
     const finta = stampanteFinta();
     const porta = await finta.ascolta();
     anagrafica.salvaReparto({ id: repartoId, stampante_host: null });
-    anagrafica.salvaCassa({ id: cassaId, stampante_host: '127.0.0.1', stampante_porta: porta });
+    anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'rete', stampante_host: '127.0.0.1', stampante_porta: porta });
 
-    const o = ordini.creaOrdine({ idemKey: 'scontrino', cassaId, righe: [{ prodottoId, quantita: 2 }] });
+    const o = ordini.creaOrdine({ idemKey: 'scontrino-rete', cassaId, righe: [{ prodottoId, quantita: 2 }] });
     await stampa.giroDiCoda();
 
     assert.equal(finta.ricevuti.length, 1);
@@ -166,6 +166,67 @@ describe('coda di stampa', () => {
     // 2 salamelle da 4,00 = 8,00
     assert.match(testo, /8,00/);
     assert.match(testo, new RegExp(`N\\. ${o.numero}`));
+    assert.equal(o.scontrinoHtml, null, 'in modalità rete non serve l\'HTML per il browser');
+    await finta.chiudi();
+  });
+});
+
+/**
+ * Le stampanti degli scontrini sono attaccate in USB ai PC delle casse: il
+ * server non le può raggiungere. Quei documenti non devono finire nella coda
+ * TCP, devono tornare alla cassa come HTML da stampare col driver di Windows.
+ */
+describe('scontrino su stampante collegata al PC della cassa', () => {
+  test('non finisce nella coda di stampa del server', () => {
+    anagrafica.salvaReparto({ id: repartoId, stampante_host: null });
+    anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'locale' });
+
+    const o = ordini.creaOrdine({ idemKey: 'scontrino-locale', cassaId, righe: [{ prodottoId, quantita: 1 }] });
+    const inCoda = db.prepare('SELECT COUNT(*) AS n FROM stampe WHERE ordine_id = ?').get(o.id).n;
+    assert.equal(inCoda, 0);
+  });
+
+  test('torna alla cassa come HTML con numero, prodotto e totale giusti', () => {
+    anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'locale' });
+    const o = ordini.creaOrdine({ idemKey: 'html-scontrino', cassaId, righe: [{ prodottoId, quantita: 3 }] });
+
+    assert.ok(o.scontrinoHtml, 'lo scontrino HTML non è stato prodotto');
+    assert.match(o.scontrinoHtml, /^<!doctype html>/);
+    assert.match(o.scontrinoHtml, new RegExp(`N\\. ${o.numero}`));
+    assert.match(o.scontrinoHtml, /Salamella/);
+    assert.match(o.scontrinoHtml, /12,00/); // 3 x 4,00
+    // 80mm di carta meno i bordi non stampabili: il contenuto sta in 72mm.
+    assert.match(o.scontrinoHtml, /body \{ width: 72mm;/);
+  });
+
+  test('il rinvio di un ordine già registrato restituisce di nuovo lo scontrino da stampare', () => {
+    anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'locale' });
+    const primo = ordini.creaOrdine({ idemKey: 'rinvio-html', cassaId, righe: [{ prodottoId, quantita: 1 }] });
+    const secondo = ordini.creaOrdine({ idemKey: 'rinvio-html', cassaId, righe: [{ prodottoId, quantita: 1 }] });
+    assert.equal(secondo.duplicato, true);
+    assert.equal(secondo.id, primo.id);
+    assert.ok(secondo.scontrinoHtml, 'la cassa che ritenta non ha mai stampato: lo scontrino va rimandato');
+  });
+
+  test('una cassa che non consegna scontrini non produce nulla', () => {
+    anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'nessuna' });
+    const o = ordini.creaOrdine({ idemKey: 'niente-scontrino', cassaId, righe: [{ prodottoId, quantita: 1 }] });
+    assert.equal(o.scontrinoHtml, null);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM stampe WHERE ordine_id = ?').get(o.id).n, 0);
+  });
+
+  test('le comande dei reparti di rete partono lo stesso, indipendentemente dalla cassa', async () => {
+    const finta = stampanteFinta();
+    const porta = await finta.ascolta();
+    anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'locale' });
+    anagrafica.salvaReparto({ id: repartoId, stampante_host: '127.0.0.1', stampante_porta: porta });
+
+    const o = ordini.creaOrdine({ idemKey: 'misto', cassaId, righe: [{ prodottoId, quantita: 2 }] });
+    await stampa.giroDiCoda();
+
+    assert.ok(o.scontrinoHtml, 'lo scontrino cliente esce dal browser');
+    assert.equal(finta.ricevuti.length, 1, 'la comanda di reparto esce dal server');
+    assert.match(finta.ricevuti[0].toString('latin1'), /CUCINA/);
     await finta.chiudi();
   });
 });

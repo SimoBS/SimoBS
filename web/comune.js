@@ -70,6 +70,45 @@ export function conErrori(fn) {
   };
 }
 
+/**
+ * Stampa una pagina HTML sulla stampante collegata a QUESTO pc, passando dal
+ * driver di Windows.
+ *
+ * La termica dello scontrino è attaccata in USB alla cassa: il server non la
+ * può raggiungere, la raggiunge solo questo browser. Il documento viene messo
+ * in un iframe fuori schermo e stampato da lì, così la pagina della cassa non
+ * si sposta e l'operatore non vede niente.
+ *
+ * Perché non compaia la finestra di dialogo a ogni scontrino, Chrome va
+ * avviato con l'opzione --kiosk-printing (vedi README e avvia-cassa.bat).
+ */
+export function stampaDalBrowser(html) {
+  return new Promise((risolvi) => {
+    const telaio = document.createElement('iframe');
+    telaio.setAttribute('aria-hidden', 'true');
+    Object.assign(telaio.style, {
+      position: 'fixed', right: '0', bottom: '0',
+      width: '0', height: '0', border: '0', visibility: 'hidden',
+    });
+    telaio.srcdoc = html;
+    telaio.onload = () => {
+      try {
+        telaio.contentWindow.focus();
+        telaio.contentWindow.print();
+      } catch (err) {
+        console.error('stampa non riuscita', err);
+      }
+      // L'iframe non si rimuove subito: con la finestra di dialogo aperta,
+      // toglierlo annullerebbe la stampa.
+      setTimeout(() => {
+        telaio.remove();
+        risolvi();
+      }, 4000);
+    };
+    document.body.append(telaio);
+  });
+}
+
 export function evidenziaNav() {
   const qui = location.pathname.split('/').pop() || 'cassa.html';
   for (const a of document.querySelectorAll('.navlink')) {

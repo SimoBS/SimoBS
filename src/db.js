@@ -174,6 +174,23 @@ const MIGRAZIONI = [
     CREATE INDEX idx_stampe_ordine ON stampe(ordine_id);
     `,
   },
+  {
+    id: '002-modo-stampa-cassa',
+    sql: `
+    -- Come stampa lo scontrino cliente ogni cassa:
+    --   'locale'  la termica è attaccata al PC della cassa (USB/seriale) e il
+    --             server non la può raggiungere: stampa il browser di quel PC
+    --             attraverso il driver di Windows.
+    --   'rete'    la termica ha un indirizzo IP: la raggiunge il server, come
+    --             fa con i reparti.
+    --   'nessuna' quella cassa non consegna scontrini al cliente.
+    ALTER TABLE casse ADD COLUMN modo_stampa TEXT NOT NULL DEFAULT 'locale';
+
+    -- Chi aveva già configurato un IP stava usando una stampante di rete.
+    UPDATE casse SET modo_stampa = 'rete'
+    WHERE stampante_host IS NOT NULL AND stampante_host <> '';
+    `,
+  },
 ];
 
 function applicaMigrazioni() {

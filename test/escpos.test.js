@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spezza, codificaCp858, Documento, versoTesto, versoEscPos } from '../src/escpos.js';
+import { spezza, codificaCp858, Documento, versoTesto, versoEscPos, versoHtml } from '../src/escpos.js';
 
 test('spezza va a capo senza tagliare le parole', () => {
   assert.deepEqual(spezza('Salamella con patatine fritte', 12), ['Salamella', 'con patatine', 'fritte']);
@@ -49,6 +49,46 @@ test('i byte ESC/POS iniziano con reset e selezione della tabella caratteri', ()
   doc.testo('x');
   const byte = versoEscPos(doc);
   assert.deepEqual([...byte.subarray(0, 5)], [0x1b, 0x40, 0x1b, 0x74, 19]);
+});
+
+test('la resa HTML impagina le colonne come quella per la termica', () => {
+  // Stesso documento, due destinazioni diverse: le righe devono coincidere,
+  // altrimenti lo scontrino stampato dal PC della cassa sarebbe impaginato
+  // diversamente da quello stampato dalla termica di rete.
+  const doc = new Documento(32);
+  doc.colonne('Salamella con patatine', '6,50');
+  const daTesto = versoTesto(doc).split('\n');
+  const daHtml = versoHtml(doc).match(/<div class="r">([^<]*)<\/div>/g)
+    .map((r) => r.replace(/<[^>]+>/g, ''));
+  assert.deepEqual(daHtml, daTesto);
+});
+
+test('la pagina HTML lascia il formato al driver del rullo e fissa solo la larghezza utile', () => {
+  const doc = new Documento(32);
+  doc.testo('x');
+  const html = versoHtml(doc, { larghezzaMm: 58, margineMm: 4 });
+  // Nessuna misura di pagina imposta: la lunghezza dello scontrino e il taglio
+  // li gestisce il driver, altrimenti si fa avanzare carta bianca ogni volta.
+  assert.match(html, /@page \{ size: auto; margin: 0; \}/);
+  // 58mm di carta meno 4mm di bordo per lato = 50mm scrivibili.
+  assert.match(html, /body \{ width: 50mm;/);
+});
+
+test('la resa HTML mette in salvo i caratteri speciali invece di produrre marcatori', () => {
+  const doc = new Documento(48);
+  doc.testo('Panino <con> "salsa" & senape');
+  const html = versoHtml(doc);
+  assert.match(html, /&lt;con&gt;/);
+  assert.match(html, /&amp; senape/);
+});
+
+test('il corpo del carattere HTML cresce col corpo del blocco', () => {
+  const doc = new Documento(48);
+  doc.testo('grande', { size: 2 });
+  const html = versoHtml(doc);
+  const base = Number(html.match(/\.r \{[^}]*font-size: ([\d.]+)mm/)[1]);
+  const doppio = Number(html.match(/\.c2 \{ font-size: ([\d.]+)mm/)[1]);
+  assert.ok(Math.abs(doppio - base * 2) < 0.01);
 });
 
 test('il taglio emette il comando GS V', () => {

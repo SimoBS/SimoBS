@@ -79,7 +79,7 @@ function salva(tabella, campi, dati) {
   return db.prepare(`SELECT * FROM ${tabella} WHERE id = ?`).get(Number(info.lastInsertRowid));
 }
 
-export const salvaCassa = (d) => salva('casse', ['nome', 'stampante_host', 'stampante_porta', 'attiva'], d);
+export const salvaCassa = (d) => salva('casse', ['nome', 'modo_stampa', 'stampante_host', 'stampante_porta', 'attiva'], d);
 export const salvaReparto = (d) => salva('reparti', ['nome', 'stampante_host', 'stampante_porta', 'copie', 'ordine', 'attivo'], d);
 export const salvaCategoria = (d) => salva('categorie', ['nome', 'colore', 'ordine'], d);
 export const salvaProdotto = (d) => salva('prodotti', ['nome', 'nome_comanda', 'categoria_id', 'reparto_id', 'prezzo_cent', 'ordine', 'attivo'], d);

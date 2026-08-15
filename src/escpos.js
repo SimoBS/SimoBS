@@ -134,31 +134,120 @@ function rendiCorpo(riga, size) {
   return riga.split('').join(' '.repeat(n - 1));
 }
 
-/** Rende il documento come testo semplice, per anteprima e diagnostica. */
-export function versoTesto(doc) {
-  const righe = [];
+/**
+ * Riduce il documento a righe già impaginate, ognuna con il proprio corpo,
+ * allineamento e grassetto.
+ *
+ * È il passaggio comune alle tre rese (testo, HTML, ESC/POS): l'impaginazione
+ * — dove va a capo una descrizione lunga, come si allinea un importo a destra —
+ * esiste in un posto solo, quindi una comanda vista in anteprima è impaginata
+ * esattamente come quella che esce dalla carta.
+ */
+function* righeLogiche(doc) {
   for (const b of doc.blocchi) {
     if (b.t === 'spazio') {
-      for (let i = 0; i < (b.n ?? 1); i++) righe.push('');
+      for (let i = 0; i < (b.n ?? 1); i++) yield { tipo: 'vuoto', v: '' };
     } else if (b.t === 'separatore') {
-      righe.push(b.carattere.repeat(doc.larghezza));
+      yield { tipo: 'separatore', v: b.carattere.repeat(doc.larghezza) };
     } else if (b.t === 'taglio') {
-      righe.push('-'.repeat(doc.larghezza - 2) + ' ✂');
+      yield { tipo: 'taglio', v: '' };
     } else if (b.t === 'testo') {
       for (const r of spezza(b.v, larghezzaBlocco(doc, b))) {
-        righe.push(allinea(rendiCorpo(r, b.size), doc.larghezza, b.align ?? 'left'));
+        yield { tipo: 'testo', v: r, size: b.size ?? 1, bold: !!b.bold, align: b.align ?? 'left' };
       }
     } else if (b.t === 'colonne') {
       const l = larghezzaBlocco(doc, b);
       const spazioSx = Math.max(1, l - b.dx.length - 1);
       const parti = spezza(b.sx, spazioSx);
-      parti.forEach((parte, i) => {
+      for (let i = 0; i < parti.length; i++) {
+        // L'importo sta solo sull'ultima riga: se la descrizione va a capo,
+        // le righe precedenti restano piene di sola descrizione.
         const coda = i === parti.length - 1 ? b.dx : '';
-        righe.push(rendiCorpo(parte.padEnd(l - coda.length, ' ') + coda, b.size));
-      });
+        yield {
+          tipo: 'testo',
+          v: parti[i].padEnd(l - coda.length, ' ') + coda,
+          size: b.size ?? 1,
+          bold: !!b.bold,
+          align: 'left',
+        };
+      }
     }
   }
+}
+
+/** Rende il documento come testo semplice, per anteprima e diagnostica. */
+export function versoTesto(doc) {
+  const righe = [];
+  for (const r of righeLogiche(doc)) {
+    if (r.tipo === 'taglio') righe.push('-'.repeat(doc.larghezza - 2) + ' ✂');
+    else if (r.tipo === 'testo') righe.push(allinea(rendiCorpo(r.v, r.size), doc.larghezza, r.align));
+    else righe.push(r.v);
+  }
   return righe.join('\n');
+}
+
+const fugaHtml = (s) => String(s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/**
+ * Rende il documento come pagina HTML pronta per la stampa dal browser.
+ *
+ * Serve per gli scontrini stampati da una termica collegata in USB al PC della
+ * cassa: quella stampante il server non la può raggiungere via rete, la
+ * raggiunge solo il browser di quel PC attraverso il driver di Windows.
+ *
+ * Il carattere è a spaziatura fissa e il corpo è calcolato perché esattamente
+ * `doc.larghezza` caratteri riempiano la carta: così l'allineamento a colonne,
+ * che è fatto di spazi, cade dove deve cadere come sulla termica di rete.
+ */
+export function versoHtml(doc, { larghezzaMm = 80, margineMm = 4, titolo = 'Scontrino' } = {}) {
+  // Larghezza davvero stampabile: una termica da 80mm scrive su circa 72mm,
+  // il resto è il bordo che la testina non raggiunge.
+  const utileMm = Math.max(10, larghezzaMm - margineMm * 2);
+  // Nei font a spaziatura fissa un carattere è largo circa 0,6 volte il corpo.
+  const corpoMm = utileMm / (doc.larghezza * 0.6);
+
+  const righe = [...righeLogiche(doc)].map((r) => {
+    if (r.tipo === 'taglio') return '<div class="taglio"></div>';
+    if (r.tipo === 'vuoto') return '<div class="r">&nbsp;</div>';
+    if (r.tipo === 'separatore') return `<div class="r">${fugaHtml(r.v)}</div>`;
+    const classi = ['r'];
+    if (r.size > 1) classi.push(`c${r.size}`);
+    if (r.bold) classi.push('g');
+    if (r.align !== 'left') classi.push(r.align === 'center' ? 'centro' : 'destra');
+    return `<div class="${classi.join(' ')}">${fugaHtml(r.v)}</div>`;
+  }).join('\n');
+
+  return `<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><title>${fugaHtml(titolo)}</title><style>
+  /* Il formato della carta lo decide il driver del rullo, che sa quanto è
+     lungo lo scontrino e dove tagliare. Imporlo qui è sbagliato: "80mm auto"
+     non è nemmeno CSS valido (non si mescola una lunghezza con auto) e una
+     misura fissa farebbe avanzare carta bianca a ogni scontrino.
+     Qui si fissa solo la larghezza del contenuto, centrata sul rullo. */
+  @page { size: auto; margin: 0; }
+  html { margin: 0; padding: 0; background: #fff; }
+  body { width: ${utileMm}mm; margin: 0 auto; padding: 0; background: #fff; }
+  .r {
+    font-family: "Courier New", Courier, monospace;
+    font-size: ${corpoMm.toFixed(3)}mm;
+    line-height: 1.15;
+    white-space: pre;
+    color: #000;
+  }
+  /* Il corpo ingrandito raddoppia o triplica: le righe sono già state
+     impaginate su meno caratteri, quindi la larghezza fisica resta la stessa. */
+  .c2 { font-size: ${(corpoMm * 2).toFixed(3)}mm; }
+  .c3 { font-size: ${(corpoMm * 3).toFixed(3)}mm; }
+  .g { font-weight: 700; }
+  .centro { text-align: center; }
+  .destra { text-align: right; }
+  /* Il taglio della carta lo fa il driver a fine documento: qui serve solo
+     un po' di margine perché la lama non tagli sull'ultima riga. */
+  .taglio { height: 6mm; }
+</style></head><body>
+${righe}
+</body></html>`;
 }
 
 /** Rende il documento come byte ESC/POS pronti per la stampante. */

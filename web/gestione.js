@@ -100,14 +100,30 @@ function disegnaStampanti() {
     { titolo: '', valore: (r) => bottoneProva('reparto', r.id) },
   ], anagrafica.reparti);
 
+  const MODI = [
+    ['locale', 'attaccata a questo PC'],
+    ['rete', 'stampante di rete'],
+    ['nessuna', 'nessuno scontrino'],
+  ];
+
   tabella($('tabella-casse'), [
     { titolo: 'Cassa', valore: (c) => c.nome },
-    { titolo: 'Indirizzo IP', valore: (c) => campoLive(c.stampante_host, (v) =>
-      api('/api/casse', { method: 'POST', corpo: { id: c.id, stampante_host: v.trim() || null } }),
-    { placeholder: '192.168.1.60', size: 15 }) },
-    { titolo: 'Porta', valore: (c) => campoLive(c.stampante_porta, (v) =>
-      api('/api/casse', { method: 'POST', corpo: { id: c.id, stampante_porta: Number(v) || 9100 } }), { size: 5 }) },
-    { titolo: '', valore: (c) => bottoneProva('cassa', c.id) },
+    { titolo: 'Scontrino cliente', valore: (c) => el('select', {
+      onchange: conErrori(async (e) => {
+        await api('/api/casse', { method: 'POST', corpo: { id: c.id, modo_stampa: e.target.value } });
+        messaggio('Salvato', 'ok');
+        await caricaTutto();
+      }),
+    }, MODI.map(([v, etichetta]) =>
+      el('option', { value: v, testo: etichetta, selected: c.modo_stampa === v }))) },
+    { titolo: 'Indirizzo IP', valore: (c) => c.modo_stampa === 'rete'
+      ? campoLive(c.stampante_host, (v) =>
+        api('/api/casse', { method: 'POST', corpo: { id: c.id, stampante_host: v.trim() || null } }),
+      { placeholder: '192.168.1.60', size: 15 })
+      : el('span', { classe: 'spiega', testo: '—' }) },
+    { titolo: '', valore: (c) => c.modo_stampa === 'locale'
+      ? el('span', { classe: 'spiega', testo: 'prova dalla pagina Cassa di quel PC' })
+      : c.modo_stampa === 'rete' ? bottoneProva('cassa', c.id) : '' },
   ], anagrafica.casse);
 }
 
@@ -353,6 +369,7 @@ async function caricaConfig() {
   $('c-nome').value = c.nomeFesta;
   $('c-porta').value = c.porta;
   $('c-colonne').value = c.colonneStampante;
+  $('c-mm').value = c.larghezzaCartaMm;
   $('c-scontrino').value = c.scontrinoCliente ? '1' : '0';
 }
 
@@ -452,6 +469,7 @@ async function avvia() {
         nomeFesta: $('c-nome').value.trim(),
         porta: Number($('c-porta').value) || 8080,
         colonneStampante: Number($('c-colonne').value) || 48,
+        larghezzaCartaMm: Number($('c-mm').value) || 80,
         scontrinoCliente: $('c-scontrino').value === '1',
       },
     });

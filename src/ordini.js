@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { serataAperta } from './anagrafica.js';
 import { scaricaPerOrdine } from './magazzino.js';
 import { accoda, comandaReparto, comandaStorno, scontrinoCliente } from './stampa.js';
+import { versoHtml } from './escpos.js';
 
 export class ErroreOrdine extends Error {}
 
@@ -48,7 +49,11 @@ function accodaDocumentiOrdine({ ordine, righe, serata, cassa }) {
     });
   }
 
-  if (config.scontrinoCliente && cassa?.stampante_host) {
+  // Lo scontrino cliente va in coda SOLO se la sua stampante è di rete.
+  // Con la termica attaccata al PC della cassa il server non la può
+  // raggiungere: quel documento torna alla cassa come HTML e lo stampa il
+  // browser di quel PC (vedi `scontrinoHtmlPerOrdine`).
+  if (config.scontrinoCliente && cassa?.modo_stampa === 'rete' && cassa.stampante_host) {
     accoda({
       ordineId: ordine.id,
       destinazioneTipo: 'cassa',
@@ -58,6 +63,24 @@ function accodaDocumentiOrdine({ ordine, righe, serata, cassa }) {
       documento: scontrinoCliente({ ordine, righe, serata, cassa }),
     });
   }
+}
+
+/**
+ * Scontrino di un ordine come pagina HTML, per la stampa dal browser della
+ * cassa. Restituisce null se quella cassa non stampa scontrini in locale:
+ * così il client non ha da decidere niente, gli basta guardare se è arrivato.
+ */
+export function scontrinoHtmlPerOrdine(ordineId) {
+  const ordine = leggiOrdine(ordineId);
+  if (!ordine) return null;
+  const cassa = db.prepare('SELECT * FROM casse WHERE id = ?').get(ordine.cassa_id);
+  if (!config.scontrinoCliente || cassa?.modo_stampa !== 'locale') return null;
+  const serata = db.prepare('SELECT * FROM serate WHERE id = ?').get(ordine.serata_id);
+  const documento = scontrinoCliente({ ordine, righe: leggiRighe(ordineId), serata, cassa });
+  return versoHtml(documento, {
+    larghezzaMm: config.larghezzaCartaMm,
+    titolo: `Scontrino n. ${ordine.numero}`,
+  });
 }
 
 /**
@@ -79,9 +102,17 @@ export function creaOrdine(dati) {
   // Idempotenza: la cassa che ritenta dopo un timeout di rete non deve
   // incassare due volte. Fuori transazione perché è il caso più frequente.
   const esistente = db.prepare('SELECT id FROM ordini WHERE idem_key = ?').get(idemKey);
-  if (esistente) return { ...dettaglioOrdine(esistente.id), duplicato: true };
+  if (esistente) {
+    // Il rinvio arriva quasi sempre perché la cassa non ha ricevuto la
+    // risposta, quindi non ha nemmeno stampato: lo scontrino va rimandato.
+    return {
+      ...dettaglioOrdine(esistente.id),
+      scontrinoHtml: scontrinoHtmlPerOrdine(esistente.id),
+      duplicato: true,
+    };
+  }
 
-  return inTransazione(() => {
+  const creato = inTransazione(() => {
     const serata = serataAperta();
     if (!serata) throw new ErroreOrdine('nessuna serata aperta: aprine una dal pannello di gestione');
 
@@ -152,6 +183,8 @@ export function creaOrdine(dati) {
 
     return { ...ordine, righe: leggiRighe(ordineId), duplicato: false };
   });
+
+  return { ...creato, scontrinoHtml: scontrinoHtmlPerOrdine(creato.id) };
 }
 
 /**

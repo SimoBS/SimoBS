@@ -3,11 +3,14 @@ import { config, salvaConfig } from './config.js';
 import * as anagrafica from './anagrafica.js';
 import * as magazzino from './magazzino.js';
 import * as report from './report.js';
-import { creaOrdine, annullaOrdine, dettaglioOrdine, ultimiOrdini, ErroreOrdine } from './ordini.js';
+import {
+  creaOrdine, annullaOrdine, dettaglioOrdine, ultimiOrdini,
+  scontrinoHtmlPerOrdine, ErroreOrdine,
+} from './ordini.js';
 import {
   accoda, statoCoda, ristampa, ristampaOrdine, documentoDiProva, euro,
 } from './stampa.js';
-import { versoTesto } from './escpos.js';
+import { versoTesto, versoHtml } from './escpos.js';
 
 export class ErroreRichiesta extends Error {
   constructor(messaggio, stato = 400) {
@@ -105,6 +108,15 @@ rotta('POST', '/api/ordini/:id/annulla', (ctx) => annullaOrdine(intero(ctx.param
 
 rotta('POST', '/api/ordini/:id/ristampa', (ctx) => ({
   documenti: ristampaOrdine(intero(ctx.parametri.id)),
+}));
+
+/**
+ * Scontrino da stampare dal browser della cassa (stampante attaccata al PC).
+ * Vuoto se quella cassa non è in modalità locale: il client non deve sapere
+ * come è configurata, gli basta vedere se arriva qualcosa da stampare.
+ */
+rotta('GET', '/api/ordini/:id/scontrino', (ctx) => ({
+  html: scontrinoHtmlPerOrdine(intero(ctx.parametri.id)),
 }));
 
 // ---------------------------------------------------------------------------
@@ -228,17 +240,29 @@ rotta('POST', '/api/stampe/prova', (ctx) => {
   const tipo = ctx.corpo.destinazioneTipo === 'cassa' ? 'cassa' : 'reparto';
   const id = intero(ctx.corpo.destinazioneId);
   const dest = tipo === 'cassa'
-    ? db.prepare('SELECT nome FROM casse WHERE id = ?').get(id)
+    ? db.prepare('SELECT nome, modo_stampa FROM casse WHERE id = ?').get(id)
     : db.prepare('SELECT nome FROM reparti WHERE id = ?').get(id);
   if (!dest) throw new ErroreRichiesta('destinazione inesistente', 404);
+
+  const documento = documentoDiProva(dest.nome);
+
+  // Una cassa con la stampante attaccata al proprio PC non è raggiungibile dal
+  // server: la prova torna come HTML e deve stamparla il browser di quel PC.
+  if (tipo === 'cassa' && dest.modo_stampa === 'locale') {
+    return {
+      modo: 'locale',
+      html: versoHtml(documento, { larghezzaMm: config.larghezzaCartaMm, titolo: `Prova ${dest.nome}` }),
+    };
+  }
+
   const stampaId = accoda({
     destinazioneTipo: tipo,
     destinazioneId: id,
     tipo: 'prova',
     descrizione: `Prova ${dest.nome}`,
-    documento: documentoDiProva(dest.nome),
+    documento,
   });
-  return { stampaId };
+  return { modo: 'rete', stampaId };
 });
 
 // ---------------------------------------------------------------------------

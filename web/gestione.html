@@ -38,14 +38,24 @@
     <div class="scheda">
       <h2>Stampanti</h2>
       <p class="spiega">
-        Indirizzo IP e porta di ogni stampante termica di rete (quasi sempre la
-        porta 9100). Un reparto <strong>senza indirizzo non stampa nulla</strong>,
-        ed è una scelta legittima: il bar che serve al banco non ha bisogno di
-        comande. Fai sempre una stampa di prova prima di aprire i cancelli.
+        Ci sono due percorsi di stampa diversi, perché le stampanti non sono
+        tutte uguali.
       </p>
-      <h3 style="font-size:0.95rem;">Reparti</h3>
+      <p class="spiega">
+        <strong>Comande dei reparti</strong> (Cucina e Bar): stampanti di rete,
+        le raggiunge il server con il loro indirizzo IP sulla porta 9100. Un
+        reparto senza indirizzo non stampa nulla, ed è una scelta legittima.
+      </p>
+      <p class="spiega">
+        <strong>Scontrini per il cliente</strong>: la termica è attaccata in USB
+        al PC della cassa, quindi il server <em>non</em> la può raggiungere. La
+        stampa il browser di quel PC attraverso il driver di Windows. Per questo
+        la stampa di prova va fatta dalla pagina Cassa di quel computer, e non
+        da qui.
+      </p>
+      <h3 style="font-size:0.95rem;">Reparti — stampanti di rete</h3>
       <table id="tabella-reparti"></table>
-      <h3 style="font-size:0.95rem; margin-top:20px;">Casse</h3>
+      <h3 style="font-size:0.95rem; margin-top:20px;">Casse — scontrino cliente</h3>
       <table id="tabella-casse"></table>
     </div>
 
@@ -153,6 +163,7 @@
         <div class="campo"><label for="c-nome">Nome della festa</label><input id="c-nome"></div>
         <div class="campo"><label for="c-porta">Porta del server</label><input id="c-porta" inputmode="numeric"></div>
         <div class="campo"><label for="c-colonne">Larghezza carta (caratteri)</label><input id="c-colonne" inputmode="numeric"></div>
+        <div class="campo"><label for="c-mm">Larghezza carta (mm)</label><input id="c-mm" inputmode="numeric"></div>
         <div class="campo">
           <label for="c-scontrino">Scontrino per il cliente</label>
           <select id="c-scontrino"><option value="1">sì</option><option value="0">no</option></select>

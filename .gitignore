@@ -6,6 +6,9 @@ dati/
 *.db-shm
 backup/
 
+# Profilo di Chrome creato da avvia-cassa.bat sul PC della cassa.
+profilo-cassa/
+
 node_modules/
 npm-debug.log*
 .DS_Store

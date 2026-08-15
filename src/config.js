@@ -12,8 +12,12 @@ const PERCORSO_CONFIG = join(CARTELLA_DATI, 'config.json');
 const PREDEFINITA = {
   nomeFesta: 'Festa della Birra',
   porta: 8080,
-  // Righe stampabili sulla carta: 48 per la 80mm, 32 per la 58mm.
+  // Caratteri stampabili per riga: 48 per la carta da 80mm, 32 per la 58mm.
   colonneStampante: 48,
+  // Larghezza fisica della carta in millimetri. Serve solo agli scontrini
+  // stampati dal browser sulla termica collegata al PC della cassa: da qui
+  // si calcola il corpo del carattere perché le colonne cadano allineate.
+  larghezzaCartaMm: 80,
   // Ogni quanti millisecondi la coda ritenta le stampe non riuscite.
   intervalloCodaStampaMs: 2000,
   // Dopo quanti tentativi falliti una stampa smette di ritentare da sola

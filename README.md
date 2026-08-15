@@ -11,16 +11,34 @@ pannello di gestione, senza chiedere il permesso a nessuno.
 ## Come è fatto
 
 Un PC fa da server. Le casse sono normali browser sulla stessa rete che aprono
-una pagina web. Le stampanti termiche ricevono i byte ESC/POS direttamente via
-rete.
+una pagina web.
+
+Le stampanti seguono **due percorsi diversi**, perché non sono collegate allo
+stesso modo:
 
 ```
-   Cassa 1 (browser) ─┐
-   Cassa 2 (browser) ─┼─→  PC server  ──→  stampanti termiche di rete
-   Tablet             ─┘   (SimoBS)         Spina / Cucina / Griglia / Bar
-                              │
-                          simobs.db
+                        ┌── comande ──→  Cucina  (stampante di rete, TCP 9100)
+   PC server ───────────┤
+   (SimoBS)             └── comande ──→  Bar     (stampante di rete, TCP 9100)
+       │
+       │  la pagina della cassa
+       ▼
+   PC Cassa 1 (browser) ──→ scontrino ──→ termica in USB su QUESTO PC
+   PC Cassa 2 (browser) ──→ scontrino ──→ termica in USB su QUESTO PC
 ```
+
+**Comande di reparto** (Cucina e Bar): il server manda i byte ESC/POS
+direttamente alla stampante di rete. Coda persistente, ritenta da sola.
+
+**Scontrini per il cliente**: la termica è attaccata in USB al PC della cassa,
+quindi il server **non la può raggiungere**. Il documento torna al browser di
+quella cassa come pagina HTML e viene stampato dal driver di Windows di quel
+computer. È il motivo per cui la stampa di prova dello scontrino si fa dalla
+pagina Cassa, e non dal pannello di gestione.
+
+Il layout è scritto una volta sola: `escpos.js` rende lo stesso documento in
+byte ESC/POS, in HTML per il browser o in testo per l'anteprima, e un test
+verifica che le tre rese impaginino le righe allo stesso modo.
 
 **Nessuna dipendenza esterna.** Il server usa solo moduli inclusi in Node.js
 (`node:sqlite`, `node:http`, `node:net`); l'interfaccia è HTML, CSS e JavaScript
@@ -30,12 +48,15 @@ pieno, non si installa niente e non c'è internet per farlo.
 
 ## Requisiti
 
-- **Node.js 22.5 o successivo** ([nodejs.org](https://nodejs.org), versione LTS).
-- Un PC che faccia da server (basta un portatile qualunque).
+- **Node.js 22.5 o successivo** ([nodejs.org](https://nodejs.org), versione LTS)
+  **solo sul PC che fa da server**. Sulle casse non va installato niente.
 - Un router o access point per la rete locale. **Non serve internet.**
-- Stampanti termiche ESC/POS **di rete** (con presa Ethernet o Wi-Fi), che
-  accettano byte grezzi sulla porta 9100. Sono la stragrande maggioranza delle
-  Epson TM-T20/T88 e delle compatibili.
+- Le due stampanti di reparto (Cucina e Bar) **di rete**, che accettano byte
+  ESC/POS sulla porta 9100: praticamente tutte le Epson TM e compatibili.
+- Le termiche degli scontrini attaccate ai PC delle casse, installate in Windows
+  con il loro driver e impostate come **stampante predefinita** di quel PC.
+- Sulle casse **Chrome** (o Edge), avviato con la stampa diretta attiva:
+  ci pensa `avvia-cassa.bat`.
 
 ## Avvio rapido
 
@@ -57,19 +78,36 @@ All'avvio la finestra stampa gli indirizzi da aprire sulle casse, tipo
 
 ## Prima della festa
 
-1. **Rete.** Dai al PC server un indirizzo IP fisso e assegnane uno fisso anche
-   a ogni stampante. Se cambiano indirizzo a metà serata smettono di stampare.
-2. **Stampanti.** In *Gestione → Stampanti* inserisci l'IP di ogni reparto e
-   premi **Prova**. La stampa di prova contiene accenti e simbolo dell'euro:
-   se escono caratteri strani, la stampante non è impostata su CP858.
-3. **Larghezza carta.** In *Impostazioni*: 48 caratteri per la carta da 80mm,
-   32 per quella da 58mm. È la causa numero uno delle comande impaginate male.
-4. **Menu e prezzi.** In *Gestione → Prodotti*.
-5. **Magazzino.** Carica le giacenze iniziali e imposta le soglie di allarme.
-6. **Serata.** Aprine una: senza serata aperta le casse non incassano.
+1. **Rete.** Dai al PC server un indirizzo IP fisso, e uno fisso anche alle due
+   stampanti di rete. Se cambiano indirizzo a metà serata smettono di stampare.
+2. **Comande di reparto.** In *Gestione → Reparti* metti l'IP di Cucina e Bar e
+   premi **Prova**. La stampa di prova contiene accenti e simbolo dell'euro: se
+   escono caratteri strani, la stampante non è impostata su CP858.
+3. **Scontrini cliente.** Su ogni PC cassa:
+   - la termica dev'essere la **stampante predefinita** di Windows;
+   - apri `avvia-cassa.bat` (dopo averci messo dentro l'indirizzo del server);
+   - nella pagina Cassa premi **Prova stampa**. Deve uscire lo scontrino di
+     prova **senza** che compaia la finestra "Stampa": se compare, Chrome non è
+     partito con `--kiosk-printing` e a ogni cliente qualcuno dovrà cliccare.
+4. **Larghezza carta.** In *Impostazioni*: 48 caratteri e 80 mm per la carta
+   grande, 32 caratteri e 58 mm per quella stretta. È la causa numero uno delle
+   comande impaginate male.
+5. **Menu e prezzi.** In *Gestione → Prodotti*.
+6. **Magazzino.** Carica le giacenze iniziali e imposta le soglie di allarme.
+7. **Serata.** Aprine una: senza serata aperta le casse non incassano.
 
-Un reparto **senza indirizzo IP non stampa nulla**, ed è una scelta legittima:
-il bar che serve direttamente al banco non ha bisogno di comande.
+Un reparto **senza indirizzo IP non stampa nulla**, ed è una scelta legittima.
+Allo stesso modo una cassa può essere impostata su *nessuno scontrino* se in
+quella postazione non si consegna niente al cliente.
+
+### La lunghezza dello scontrino la decide il driver
+
+La pagina dello scontrino non impone un formato: fissa solo la larghezza del
+contenuto e lascia decidere al driver del rullo dove finisce e dove tagliare.
+Se il tuo driver è configurato con un foglio di lunghezza fissa, dopo ogni
+scontrino uscirà carta bianca: nelle proprietà della stampante scegli il tipo
+carta "ricevuta"/"roll paper" a lunghezza variabile, con taglio a fine
+documento.
 
 ## Le scelte che contano
 
@@ -118,8 +156,11 @@ cuoco deve saperlo subito.
 
 | Sintomo | Da guardare |
 |---|---|
-| Una stampante non stampa | *Gestione → Coda di stampa*: c'è l'errore vero. Poi ping all'IP. |
-| Comande impaginate male | Larghezza carta in *Impostazioni* (48 o 32). |
+| Cucina o Bar non stampano | *Gestione → Coda di stampa*: c'è l'errore vero. Poi ping all'IP. |
+| Lo scontrino cliente non esce | È un problema di quel PC, non del server: stampante predefinita giusta? Prova con **Prova stampa** nella pagina Cassa. |
+| A ogni scontrino compare la finestra "Stampa" | Chrome non è partito con `--kiosk-printing`: usa `avvia-cassa.bat`. |
+| Dopo ogni scontrino esce carta bianca | Il driver ha un foglio di lunghezza fissa: impostalo su carta "ricevuta" a lunghezza variabile. |
+| Comande impaginate male | Larghezza carta in *Impostazioni* (48 o 32 caratteri). |
 | Accenti sbagliati sulla carta | La stampante non usa CP858: vedi il suo manuale. |
 | La cassa dice "non raggiungibile" | Il PC server è spento, oppure il Wi-Fi è caduto. Gli ordini restano nel browser e partono da soli al ritorno. |
 | "Nessuna serata aperta" | *Gestione → Serata → Apri serata*. |
@@ -135,7 +176,7 @@ ufficiale.
 ## Sviluppo
 
 ```bash
-npm test                          # 41 test: stampa, ordini, magazzino, report
+npm test                          # 50 test: stampa, ordini, magazzino, report
 node --no-warnings src/seed.js --reset   # riparte da un menu di esempio pulito
 ```
 
@@ -151,12 +192,15 @@ src/
   magazzino.js  giacenze, distinta base, movimenti
   report.js     tutte le query dei report
   stampa.js     modelli di comanda e coda di stampa persistente
-  escpos.js     documenti astratti -> byte ESC/POS o anteprima testuale
+  escpos.js     documenti astratti -> byte ESC/POS, HTML da stampare, anteprima
 web/            le tre pagine, senza framework
 test/           test automatici
+avvia.bat       avvia il server (sul PC server)
+avvia-cassa.bat apre Chrome in modalità cassa (su ogni PC cassa)
 ```
 
 Il layout delle stampe si progetta guardandolo: `escpos.js` rende lo stesso
-documento sia in byte per la termica sia in testo per il browser, così si
-ridisegna una comanda senza sprecare carta e senza avere una stampante sotto
-mano (*Report → Anteprima chiusura*).
+documento in tre modi — byte per la termica di rete, HTML per la termica
+attaccata al PC, testo per l'anteprima a schermo — così si ridisegna una
+comanda senza sprecare carta e senza avere una stampante sotto mano
+(*Report → Anteprima chiusura*).

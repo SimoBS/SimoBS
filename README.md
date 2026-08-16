@@ -140,6 +140,17 @@ dice "Cucina: non ancora uscito", ma non blocca niente. Sotto pressione un
 blocco lo si aggira e basta, e i casi legittimi che non hai previsto ci sono
 sempre.
 
+### Ordini di un reparto solo
+
+Un ordine di sole birre, o di solo cibo, non ha niente da attendere: si
+completa alla sua unica uscita e conta subito fra i pronti da far uscire.
+
+Perché funzioni davvero però bisogna che **lo sappia chi monta il vassoio**, e
+quella persona guarda la carta, non lo schermo. Per questo ogni comanda porta
+stampato **`ANCHE: BAR`** oppure **`SOLO CUCINA`**: senza quella riga si resta
+fermi ad aspettare un vassoio che non arriverà mai, o si manda fuori il cibo
+mentre le birre sono ancora alla spina.
+
 ### I due schermi, che sono diversi
 
 **Postazione** (`reparto.html`) — il portatile con la pistola. Interattivo, si
@@ -294,7 +305,7 @@ ufficiale.
 ## Sviluppo
 
 ```bash
-npm test                          # 85 test: stampa, ordini, magazzino, report, reparti
+npm test                          # 90 test: stampa, ordini, magazzino, report, reparti
 node --no-warnings src/seed.js --reset   # riparte da un menu di esempio pulito
 ```
 

@@ -4,7 +4,7 @@ const CHIAVE_REPARTO = 'simobs.reparto';
 const CHIAVE_OPERATORE = 'simobs.operatore';
 
 const $ = (id) => document.getElementById(id);
-const stato = { repartoId: null, collegato: true };
+const stato = { repartoId: null, repartoNome: '', collegato: true };
 
 /** Da quanto è in attesa questo ordine, in minuti. */
 function attesaMinuti(ts) {
@@ -49,15 +49,14 @@ function schedaOrdine(ordine, { azione, etichettaAzione, classeAzione }) {
     ordine.nota ? el('div', { classe: 'nota-ordine', testo: ordine.nota }) : null,
 
     // Il pezzo che sincronizza: com'è messo l'altro reparto su questo ordine.
-    altri.length > 0
-      ? el('div', { classe: 'altri-reparti' }, altri.map((r) =>
-        el('span', {
-          classe: `pillola ${r.stato === 'uscito' ? 'ok' : 'basso'}`,
-          testo: `${r.reparto}: ${ETICHETTE[r.stato]}`,
-        })))
-      : el('div', { classe: 'altri-reparti' }, [
-        el('span', { classe: 'spiega', testo: 'solo questo reparto su questo ordine' }),
-      ]),
+    // Se l'ordine riguarda solo questo reparto non c'è niente da attendere:
+    // va detto, altrimenti si resta fermi aspettando un vassoio che non arriva.
+    el('div', { classe: 'altri-reparti' }, altri.length > 0
+      ? altri.map((r) => el('span', {
+        classe: `pillola ${r.stato === 'uscito' ? 'ok' : 'basso'}`,
+        testo: `${r.reparto}: ${ETICHETTE[r.stato]}`,
+      }))
+      : [el('span', { classe: 'pillola ok', testo: `solo ${stato.repartoNome} — niente da attendere` })]),
 
     azione
       ? el('button', {
@@ -202,12 +201,14 @@ async function avvia() {
     const salvato = localStorage.getItem(CHIAVE_REPARTO);
     if (salvato && attivi.some((r) => String(r.id) === salvato)) scelta.value = salvato;
     stato.repartoId = Number(scelta.value) || null;
-    $('titolo-reparto').textContent = scelta.selectedOptions[0]?.textContent ?? 'Postazione';
+    stato.repartoNome = scelta.selectedOptions[0]?.textContent ?? '';
+    $('titolo-reparto').textContent = stato.repartoNome || 'Postazione';
 
     scelta.addEventListener('change', (e) => {
       stato.repartoId = Number(e.target.value) || null;
+      stato.repartoNome = e.target.selectedOptions[0]?.textContent ?? '';
       localStorage.setItem(CHIAVE_REPARTO, e.target.value);
-      $('titolo-reparto').textContent = e.target.selectedOptions[0]?.textContent ?? 'Postazione';
+      $('titolo-reparto').textContent = stato.repartoNome || 'Postazione';
       aggiorna();
       campo.focus();
     });

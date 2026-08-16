@@ -120,6 +120,47 @@ describe('i due tempi della lavorazione', () => {
   });
 });
 
+/**
+ * Un ordine che riguarda un reparto solo — solo birre, o solo cibo — non ha
+ * niente da attendere. Va trattato bene in tre punti: non deve restare appeso
+ * a un vassoio che non arriverà mai, deve contare come pronto da far uscire, e
+ * la carta deve dirlo a chi monta il vassoio.
+ */
+describe('comande di un solo reparto', () => {
+  const soloCucina = (extra = {}) => ordini.creaOrdine({
+    idemKey: `solo-${++contatore}`, cassaId, tavolo: '9',
+    righe: [{ prodottoId: salamella, quantita: 2 }], ...extra,
+  });
+
+  test('un ordine di solo cibo si completa senza aspettare il bar', () => {
+    const o = soloCucina();
+    const s = avanzamento.statoOrdine(o.id);
+    assert.deepEqual(s.reparti.map((r) => r.reparto), ['Cucina']);
+    assert.equal(esci(o.id, cucina).completo, true);
+  });
+
+  test('un ordine di sole birre si completa senza aspettare la cucina', () => {
+    const o = soloBirra();
+    assert.deepEqual(avanzamento.statoOrdine(o.id).reparti.map((r) => r.reparto), ['Bar']);
+    assert.equal(esci(o.id, bar).completo, true);
+  });
+
+  test('conta subito fra i pronti da far uscire: non c\'è nessun altro da attendere', () => {
+    const prima = avanzamento.riepilogoMonitor(cucina).sbloccati;
+    soloCucina();
+    assert.equal(avanzamento.riepilogoMonitor(cucina).sbloccati, prima + 1);
+  });
+
+  test('un ordine misto invece NON è sbloccato finché il bar non esce', () => {
+    const prima = avanzamento.riepilogoMonitor(cucina).sbloccati;
+    const o = ordineMisto();
+    assert.equal(avanzamento.riepilogoMonitor(cucina).sbloccati, prima,
+      'con il bar ancora al lavoro la cucina non deve mandare fuori niente');
+    esci(o.id, bar);
+    assert.equal(avanzamento.riepilogoMonitor(cucina).sbloccati, prima + 1);
+  });
+});
+
 describe('lettura del codice a barre', () => {
   test('il codice porta all\'ordine giusto e registra chi ha sparato', () => {
     const o = ordineMisto();

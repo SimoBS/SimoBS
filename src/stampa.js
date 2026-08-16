@@ -35,7 +35,7 @@ export function destinazione(ordine) {
   return `TAVOLO ${ordine.tavolo}`;
 }
 
-export function comandaReparto({ ordine, righe, reparto, cassa }) {
+export function comandaReparto({ ordine, righe, reparto, cassa, altriReparti = [] }) {
   const doc = new Documento(config.colonneStampante);
   doc.titolo(reparto.nome.toUpperCase());
   doc.separatore('=');
@@ -44,9 +44,18 @@ export function comandaReparto({ ordine, righe, reparto, cassa }) {
   // portarlo. Il numero d'ordine serve solo a ritrovare la comanda.
   doc.testo(destinazione(ordine), { size: 3, align: 'center', bold: true });
   if (ordine.coperti > 0) doc.testo(`${ordine.coperti} coperti`, { align: 'center' });
+
+  // Se per questo tavolo esce anche un altro vassoio, chi monta questo deve
+  // saperlo dalla carta, senza andare a guardare uno schermo: è quello che
+  // decide se il vassoio parte subito o aspetta il bar. Una comanda che
+  // riguarda un reparto solo non ha niente da attendere.
+  doc.testo(
+    altriReparti.length > 0 ? `ANCHE: ${altriReparti.join(', ').toUpperCase()}` : `SOLO ${reparto.nome.toUpperCase()}`,
+    { align: 'center', bold: true },
+  );
   doc.separatore('=');
   doc.colonne(`comanda n. ${ordine.numero}`, oraDi(ordine.ts));
-  doc.colonne(cassa?.nome ?? '', '');
+  if (cassa?.nome) doc.testo(cassa.nome);
   doc.separatore();
   for (const r of righe) {
     doc.testo(`${r.quantita} x ${r.nome_comanda || r.nome}`, { size: 2, bold: true });
@@ -60,7 +69,8 @@ export function comandaReparto({ ordine, righe, reparto, cassa }) {
   // Da leggere con la pistola quando la roba è pronta. Sta in fondo perché è
   // la parte che resta esposta quando la comanda è infilzata sul portacomande.
   doc.codiceABarre(ordine.id);
-  doc.testo('Leggi il codice quando è pronto', { align: 'center' });
+  doc.testo('1) spara quando prendi in carico', { align: 'center' });
+  doc.testo('2) spara quando esce il vassoio', { align: 'center' });
   doc.spazio(1);
   doc.taglio();
   return doc;

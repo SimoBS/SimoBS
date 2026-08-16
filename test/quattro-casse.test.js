@@ -144,8 +144,32 @@ describe('quattro casse in contemporanea', () => {
     // Lo stesso numero di comanda su entrambe: è così che il cliente ritira.
     assert.match(testoCucina, new RegExp(`comanda n. ${o.numero}`));
     assert.match(testoBar, new RegExp(`comanda n. ${o.numero}`));
+    // Ognuna avvisa che per lo stesso tavolo esce anche l'altro vassoio:
+    // è quello che dice a chi monta se partire subito o aspettare.
+    assert.match(testoCucina, /ANCHE: BAR/);
+    assert.match(testoBar, /ANCHE: CUCINA/);
     // Lo scontrino invece esce dalla termica del PC di quella cassa.
     assert.ok(o.scontrinoHtml);
+  });
+
+  test('una comanda di un reparto solo lo dichiara sulla carta', async () => {
+    await svuotaCodaCompletamente();
+    bar.ricevuti.length = 0;
+    cucina.ricevuti.length = 0;
+
+    ordini.creaOrdine({
+      idemKey: 'solo-bar', cassaId: casse[0], tavolo: '21',
+      righe: [{ prodottoId: prodotti.birra, quantita: 4 }],
+    });
+    await stampa.giroDiCoda();
+
+    assert.equal(cucina.ricevuti.length, 0, 'la cucina non deve ricevere niente');
+    assert.equal(bar.ricevuti.length, 1);
+    const testo = bar.ricevuti[0].toString('latin1');
+    // Senza questa riga chi monta il vassoio non sa se aspettare la cucina,
+    // e resterebbe fermo per un vassoio che non arriverà mai.
+    assert.match(testo, /SOLO BAR/);
+    assert.doesNotMatch(testo, /ANCHE/);
   });
 });
 

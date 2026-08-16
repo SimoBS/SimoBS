@@ -39,17 +39,26 @@ export function ultimiOrdini({ serataId, limite = 40 }) {
  * non ha bisogno di comande), non un errore da segnalare tutta la sera.
  */
 function accodaDocumentiOrdine({ ordine, righe, serata, cassa }) {
-  const reparti = db.prepare('SELECT * FROM reparti WHERE attivo = 1').all();
-  for (const reparto of reparti) {
-    const sue = righe.filter((r) => r.reparto_id === reparto.id);
-    if (sue.length === 0 || !reparto.stampante_host) continue;
+  const reparti = db.prepare('SELECT * FROM reparti').all();
+  // Quali reparti lavorano davvero questo ordine: serve a scrivere su ogni
+  // comanda se per lo stesso tavolo sta uscendo anche un altro vassoio.
+  const coinvolti = reparti.filter((rep) => righe.some((r) => r.reparto_id === rep.id));
+
+  for (const reparto of coinvolti) {
+    if (!reparto.attivo || !reparto.stampante_host) continue;
     accoda({
       ordineId: ordine.id,
       destinazioneTipo: 'reparto',
       destinazioneId: reparto.id,
       tipo: 'comanda',
       descrizione: `Comanda n. ${ordine.numero} - ${reparto.nome}`,
-      documento: comandaReparto({ ordine, righe: sue, reparto, cassa }),
+      documento: comandaReparto({
+        ordine,
+        righe: righe.filter((r) => r.reparto_id === reparto.id),
+        reparto,
+        cassa,
+        altriReparti: coinvolti.filter((r) => r.id !== reparto.id).map((r) => r.nome),
+      }),
     });
   }
 

@@ -81,6 +81,57 @@ senza framework. Non c'è nessun `npm install` da fare, nessuna compilazione,
 nessun modulo nativo. Questo è deliberato: alle 22:30 di sabato, con il tendone
 pieno, non si installa niente e non c'è internet per farlo.
 
+## Quanto è pesante (misurato, non stimato)
+
+Le casse fanno pochissimo: aprono una pagina web e basta. Tutto il lavoro —
+database, stampa, report — sta sul PC server.
+
+| Cosa | Misura |
+|---|---|
+| Peso della pagina cassa, tutto compreso | **40 kB**, scaricati una volta sola |
+| Memoria JavaScript nel browser della cassa | **3 MB** |
+| Memoria del server a riposo / dopo 400 ordini | 67 MB / **76 MB** |
+| Tempo per registrare un incasso | **3,4 ms** |
+| Database dopo 400 ordini | 312 kB (≈ 3 MB per una festa da 4000) |
+
+Con la CPU rallentata apposta per simulare un computer vecchio:
+
+| CPU | Apertura pagina | Per ogni tocco su un prodotto | Incasso completo |
+|---|---|---|---|
+| normale | 658 ms | 47 ms | 101 ms |
+| 4× più lenta | 833 ms | 68 ms | 130 ms |
+| 6× più lenta | 942 ms | 84 ms | 180 ms |
+| 10× più lenta | 1274 ms | 116 ms | 372 ms |
+
+Anche a dieci volte più lenta la cassa resta immediata al tatto. **La potenza
+non è il vincolo.**
+
+### Il vincolo vero è il browser, non il PC
+
+L'interfaccia usa `replaceChildren`, che esiste da **Chrome ed Edge 86**
+(ottobre 2020). Qualunque computer che riesca a installare un Chrome recente va
+bene, e Chrome gira ancora su Windows 7. Sotto quella soglia la pagina non
+resta bianca: compare un avviso che dice cosa installare.
+
+**Il PC server invece ha un requisito più alto:** Node.js 22 vuole Windows 10 o
+successivo. Se hai un parco macchine misto, **metti la più recente a fare da
+server** e le vecchie in cassa — è esattamente il verso giusto, perché le casse
+sono la parte leggera.
+
+## Prima di montare tutto: la diagnostica
+
+In `strumenti/` c'è uno script che raccoglie le caratteristiche di un computer
+e le stampanti collegate. Copia la cartella su una chiavetta e fai **doppio
+click su `diagnostica.bat`** su ogni PC: casse, portatili di reparto e futuro
+server. Non installa e non modifica niente, scrive solo un file di testo lì
+accanto.
+
+Riporta versione di Windows, processore, memoria, risoluzione dello schermo,
+browser installati con la loro versione, presenza di Node, e soprattutto
+l'elenco delle stampanti con driver, porta e — per quelle di rete — l'indirizzo
+IP vero. Serve a sapere prima, e non la sera della festa, quale PC può fare
+cosa.
+
 ## Requisiti
 
 - **Node.js 22.5 o successivo** ([nodejs.org](https://nodejs.org), versione LTS)

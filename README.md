@@ -114,6 +114,37 @@ All'avvio la finestra stampa gli indirizzi da aprire sulle casse, tipo
 | `/gestione.html` | Serate, prodotti, prezzi, stampanti, magazzino, storni. |
 | `/report.html` | Incassi, andamento orario, venduto, confronto fra edizioni. |
 
+## Provarlo su un computer solo
+
+Non serve niente dell'impianto: né stampanti, né rete, né altri PC. Basta Node
+e cinque minuti.
+
+```bash
+git clone -b claude/beer-fest-software-customization-pgh57f https://github.com/SimoBS/SimoBS.git
+cd SimoBS
+node --no-warnings src/seed.js     # menu di esempio: 19 prodotti, 4 casse, 2 reparti
+node --no-warnings src/demo.js     # una serata finta di 30 ordini già in corso
+npm start
+```
+
+Poi apri `http://localhost:8080` e batti qualche ordine. Le altre pagine sono
+raggiungibili dal menu in alto: postazione di reparto, monitor, report.
+
+**Il primo INCASSA aprirà la finestra di stampa di Windows**, perché la cassa è
+configurata per stampare lo scontrino sulla termica di quel PC e su un
+computer qualunque quella termica non c'è. Per provare in pace vai in
+*Gestione → Stampanti* e metti le casse su **"nessuno scontrino"**; rimetterai
+"attaccata a questo PC" quando monterai l'impianto vero.
+
+Senza pistola del codice a barre la postazione si usa lo stesso: il codice si
+digita a mano nel campo di lettura e si preme Invio, oppure si usano i
+pulsanti su ogni comanda. Il codice di un ordine è il numero sotto il codice a
+barre dello scontrino.
+
+`src/demo.js` accetta quanti ordini vuoi (`node --no-warnings src/demo.js 80`)
+e si rifiuta di girare su una serata che contiene ordini veri. Per ripulire
+tutto: `node --no-warnings src/seed.js --reset`.
+
 ## Il giro di una serata
 
 1. Il cliente si siede e legge il menù dal QR sul tavolo.

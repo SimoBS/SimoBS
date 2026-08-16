@@ -57,11 +57,19 @@
 
       <div class="righe" id="righe"></div>
       <div class="totali">
-        <div class="campo">
-          <label for="sconto">Sconto €</label>
-          <input id="sconto" inputmode="decimal" value="0" autocomplete="off">
+        <!-- Sconto e nota affiancati: su un portatile da 1366x768 ogni riga in
+             meno qui è una riga in più di carrello visibile, ed è il carrello
+             che il cassiere deve poter leggere. -->
+        <div class="griglia-campi" style="grid-template-columns:auto 1fr; gap:8px;">
+          <div class="campo">
+            <label for="sconto">Sconto €</label>
+            <input id="sconto" inputmode="decimal" value="0" autocomplete="off" size="5">
+          </div>
+          <div class="campo">
+            <label for="nota-ordine">Nota per i reparti</label>
+            <input id="nota-ordine" placeholder="facoltativa" autocomplete="off">
+          </div>
         </div>
-        <input id="nota-ordine" placeholder="Nota per i reparti (facoltativa)" autocomplete="off">
         <div class="pagamenti" id="pagamenti"></div>
         <div class="totale-grande"><span>Totale</span><span id="totale">0,00</span></div>
         <div class="azioni">

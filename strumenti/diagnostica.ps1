@@ -101,12 +101,38 @@ if (-not $stampanti) {
   }
 }
 
-# Le porte TCP dicono l'indirizzo IP vero delle stampanti di rete.
+# Le porte TCP dicono l'indirizzo IP vero delle stampanti di rete. Attenzione:
+# il NOME della porta e' solo un'etichetta e puo' essere un vecchio indirizzo
+# rimasto li'. Quello che conta e' HostAddress.
 Titolo "PORTE DI STAMPA DI RETE"
+
+function ProvaPorta($indirizzo, $porta) {
+  $client = New-Object System.Net.Sockets.TcpClient
+  try {
+    $attesa = $client.BeginConnect($indirizzo, $porta, $null, $null)
+    if ($attesa.AsyncWaitHandle.WaitOne(1500, $false) -and $client.Connected) {
+      $client.EndConnect($attesa)
+      return "RISPONDE"
+    }
+    return "non risponde"
+  } catch {
+    return "non risponde"
+  } finally {
+    $client.Close()
+  }
+}
+
 $porte = Get-WmiObject Win32_TCPIPPrinterPort
 if ($porte) {
   foreach ($p in $porte) {
-    Aggiungi ($p.Name + "  ->  " + $p.HostAddress + " porta " + $p.PortNumber)
+    $esito = ProvaPorta $p.HostAddress $p.PortNumber
+    Aggiungi ("Nome porta      : " + $p.Name)
+    Aggiungi ("Indirizzo VERO  : " + $p.HostAddress + " porta " + $p.PortNumber)
+    Aggiungi ("Raggiungibile   : " + $esito)
+    if ($p.Name -ne $p.HostAddress) {
+      Aggiungi "  ATTENZIONE: il nome della porta non e' l'indirizzo vero, e' solo un'etichetta."
+    }
+    Aggiungi ""
   }
 } else {
   Aggiungi "Nessuna porta di stampa TCP/IP configurata."
@@ -115,13 +141,26 @@ if ($porte) {
 # ------------------------------------------------------------------ rete
 Titolo "RETE"
 $schede = Get-WmiObject Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True"
-foreach ($n in $schede) {
+if (-not $schede) {
+  # Senza questo avviso la sezione resterebbe vuota senza spiegare perche',
+  # e non si capirebbe se e' un problema dello script o del computer.
+  Aggiungi "NESSUNA scheda di rete con un indirizzo IP attivo."
+  Aggiungi "Il PC e' scollegato dalla rete in questo momento (cavo staccato o WiFi spento)."
+  Aggiungi "Ricollegalo e rilancia: serve sapere su che rete si trova."
   Aggiungi ""
-  Aggiungi ("Scheda   : " + $n.Description)
-  Aggiungi ("IP       : " + ($n.IPAddress -join ", "))
-  Aggiungi ("Maschera : " + ($n.IPSubnet -join ", "))
-  Aggiungi ("Gateway  : " + ($n.DefaultIPGateway -join ", "))
-  Aggiungi ("DHCP     : " + $(if ($n.DHCPEnabled) { "si (indirizzo NON fisso)" } else { "no (indirizzo fisso)" }))
+  Aggiungi "Schede presenti comunque nel PC:"
+  foreach ($a in (Get-WmiObject Win32_NetworkAdapter -Filter "PhysicalAdapter=True")) {
+    Aggiungi ("  " + $a.Name + "  ->  stato " + $a.NetConnectionStatus + " (2 = collegata)")
+  }
+} else {
+  foreach ($n in $schede) {
+    Aggiungi ""
+    Aggiungi ("Scheda   : " + $n.Description)
+    Aggiungi ("IP       : " + ($n.IPAddress -join ", "))
+    Aggiungi ("Maschera : " + ($n.IPSubnet -join ", "))
+    Aggiungi ("Gateway  : " + ($n.DefaultIPGateway -join ", "))
+    Aggiungi ("DHCP     : " + $(if ($n.DHCPEnabled) { "si (indirizzo NON fisso)" } else { "no (indirizzo fisso)" }))
+  }
 }
 
 # ----------------------------------------------------------------- fine

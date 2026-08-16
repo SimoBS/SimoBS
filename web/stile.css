@@ -167,7 +167,10 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   min-height: 0;
 }
 
-.righe { flex: 1; overflow-y: auto; padding: 8px; }
+/* Il carrello non deve mai ridursi a una riga: è quello che il cassiere
+   rilegge al cliente prima di incassare. Se lo spazio manca, si comprimono i
+   campi qui sotto, non questo. */
+.righe { flex: 1; min-height: 150px; overflow-y: auto; padding: 8px; }
 .righe:empty::after {
   content: "Nessun prodotto selezionato";
   display: block;
@@ -525,6 +528,42 @@ body.monitor { background: #0b0907; }
 
 @media (max-width: 1000px) {
   .colonne-reparto { grid-template-columns: 1fr; }
+}
+
+/*
+ * Portatili bassi: un 1366x768 lascia circa 650px di altezza utile una volta
+ * tolta la barra di Chrome. Senza questi ritocchi la barra in alto va a capo su
+ * due righe e i campi mangiano tutto lo spazio del carrello. Misurato su un
+ * Lenovo da cassa, non ipotizzato.
+ */
+/* Sotto i 1450px la barra della cassa andrebbe a capo su due righe, e quelle
+   righe le paga il carrello. Il nome della serata è la cosa meno utile durante
+   il servizio: se non ce n'è una aperta lo dice comunque il banner rosso. */
+@media (max-width: 1450px) {
+  .barra .serata { display: none; }
+}
+
+@media (max-height: 820px) {
+  .barra { padding: 5px 12px; gap: 9px; }
+  .barra h1 { font-size: 0.95rem; }
+  .barra .serata { font-size: 0.8rem; }
+  .navlink { padding: 4px 8px; font-size: 0.84rem; }
+  .barra button, .barra select, .barra input { padding: 6px 9px; font-size: 0.86rem; }
+
+  .destinazione { padding: 8px 10px; gap: 6px; }
+  .servizi button { min-height: 40px; font-size: 0.86rem; }
+  .campo label { font-size: 0.74rem; }
+  .destinazione input, .totali input { padding: 7px 10px; }
+
+  .totali { padding: 8px 10px; gap: 6px; }
+  .pagamenti button { min-height: 38px; font-size: 0.84rem; }
+  .totale-grande { font-size: 1.6rem; }
+  .incassa { min-height: 54px; font-size: 1.1rem; }
+  .azioni button { padding: 8px 10px; }
+
+  .prodotto { min-height: 76px; padding: 10px; }
+  .categorie { padding: 7px 10px; }
+  .categorie button { min-height: 44px; }
 }
 
 /* Schermi piccoli: lo scontrino va sotto al catalogo. */

@@ -20,8 +20,12 @@ async function aggiorna() {
       // Solo i numeri comparsi da poco lampeggiano: al primo caricamento
       // lampeggerebbe tutto, e non servirebbe a niente.
       classe: `numero-pronto ${!primoGiro && !visti.has(o.numero) ? 'nuovo' : ''}`,
-      testo: String(o.numero),
-    })));
+    }, [
+      el('span', { classe: 'cifra', testo: String(o.numero) }),
+      // Chi aspetta un asporto e chi mangia lì ritirano allo stesso banco ma
+      // portano via cose diverse: distinguerlo evita scambi di pacchetti.
+      el('span', { classe: 'tipo', testo: o.servizio === 'asporto' ? 'asporto' : 'self service' }),
+    ])));
 
     visti = new Set(ordini.map((o) => o.numero));
     primoGiro = false;

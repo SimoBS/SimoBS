@@ -42,8 +42,21 @@ export function comandaReparto({ ordine, righe, reparto, cassa, altriReparti = [
   // Il tavolo prima e più grande del numero d'ordine: è quello che legge il
   // cameriere quando prende il vassoio, ed è l'unica cosa che gli dice dove
   // portarlo. Il numero d'ordine serve solo a ritrovare la comanda.
-  doc.testo(destinazione(ordine), { size: 3, align: 'center', bold: true });
-  if (ordine.coperti > 0) doc.testo(`${ordine.coperti} coperti`, { align: 'center' });
+  if (ordine.servizio === 'tavolo') {
+    doc.testo(`TAVOLO ${ordine.tavolo}`, { size: 3, align: 'center', bold: true });
+    if (ordine.coperti > 0) doc.testo(`${ordine.coperti} coperti`, { align: 'center' });
+  } else {
+    // Senza tavolo il cliente ritira al banco e viene chiamato per numero:
+    // allora è il numero a dover essere leggibile da lontano, non la parola.
+    doc.testo(ordine.servizio === 'asporto' ? 'DA ASPORTO' : 'SELF SERVICE',
+      { size: 2, align: 'center', bold: true });
+    doc.testo(`N. ${ordine.numero}`, { size: 3, align: 'center', bold: true });
+    // L'asporto non è solo un modo di pagare: si prepara diversamente, nei
+    // contenitori invece che nel piatto. Chi monta il vassoio deve saperlo.
+    if (ordine.servizio === 'asporto') {
+      doc.testo('>> PREPARA DA PORTARE VIA <<', { align: 'center', bold: true });
+    }
+  }
 
   // Se per questo tavolo esce anche un altro vassoio, chi monta questo deve
   // saperlo dalla carta, senza andare a guardare uno schermo: è quello che
@@ -113,6 +126,10 @@ export function scontrinoCliente({ ordine, righe, serata, cassa }) {
   doc.separatore('=');
   doc.testo(destinazione(ordine), { size: 2, align: 'center', bold: true });
   doc.testo(`N. ${ordine.numero}`, { size: 3, align: 'center', bold: true });
+  if (ordine.servizio !== 'tavolo') {
+    doc.testo('Attendi che il tuo numero', { align: 'center' });
+    doc.testo('compaia sul monitor', { align: 'center' });
+  }
   doc.separatore('=');
   for (const r of righe) {
     doc.colonne(`${r.quantita} ${r.nome}`, euro(r.quantita * r.prezzo_cent));

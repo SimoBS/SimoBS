@@ -15,8 +15,19 @@ function attesaMinuti(ts) {
   return diff;
 }
 
-const destinazione = (o) => (o.servizio === 'asporto' ? 'ASPORTO'
-  : o.servizio === 'self' ? 'SELF' : `TAVOLO ${o.tavolo}`);
+/**
+ * Cosa scrivere in grande sulla scheda. Con un tavolo è il tavolo, perché è
+ * lì che va portato il vassoio. Senza tavolo il cliente ritira al banco e
+ * viene chiamato per numero: allora è il numero a dover saltare all'occhio.
+ */
+const testata = (o) => (o.servizio === 'tavolo' ? `TAVOLO ${o.tavolo}` : `N. ${o.numero}`);
+
+const ETICHETTA_SERVIZIO = { asporto: 'DA ASPORTO', self: 'SELF SERVICE' };
+
+/** Descrizione compatta per i messaggi dopo la lettura della pistola. */
+const destinazione = (o) => (o.servizio === 'tavolo'
+  ? `TAVOLO ${o.tavolo}`
+  : `N. ${o.numero} ${ETICHETTA_SERVIZIO[o.servizio]}`);
 
 const ETICHETTE = { da_fare: 'da fare', in_lavorazione: 'in preparazione', uscito: 'uscito' };
 
@@ -31,12 +42,19 @@ function schedaOrdine(ordine, { azione, etichettaAzione, classeAzione }) {
     el('header', {}, [
       // Il tavolo domina: è quello che serve a chi monta il vassoio e a chi lo
       // porta. Il numero di comanda serve solo a ritrovare il pezzo di carta.
-      el('span', { classe: 'numero-ordine', testo: destinazione(ordine) }),
+      el('span', { classe: 'numero-ordine', testo: testata(ordine) }),
       el('div', { classe: 'meta' }, [
         el('div', { testo: `comanda n. ${ordine.numero} · ${ordine.ts.slice(11, 16)} · ${ordine.cassa}` }),
         ordine.coperti > 0 ? el('div', { testo: `${ordine.coperti} coperti` }) : null,
         el('div', { classe: attesa >= 10 ? 'attesa lunga' : 'attesa', testo: `${attesa} min` }),
       ]),
+      // L'asporto si prepara diversamente, nei contenitori: va visto subito.
+      ordine.servizio !== 'tavolo'
+        ? el('span', {
+          classe: `bollo-servizio ${ordine.servizio}`,
+          testo: ETICHETTA_SERVIZIO[ordine.servizio],
+        })
+        : null,
     ]),
 
     el('ul', { classe: 'righe-comanda' }, ordine.righe.map((r) =>

@@ -152,6 +152,43 @@ describe('quattro casse in contemporanea', () => {
     assert.ok(o.scontrinoHtml);
   });
 
+  test('senza tavolo comanda il numero, ed è lui a stare in grande', async () => {
+    // Al banco il cliente viene chiamato per numero: se restasse in piccolo
+    // mentre campeggia la parola "ASPORTO", chi consegna non saprebbe a chi.
+    await svuotaCodaCompletamente();
+    cucina.ricevuti.length = 0;
+
+    const o = ordini.creaOrdine({
+      idemKey: 'asporto-carta', cassaId: casse[1], servizio: 'asporto',
+      righe: [{ prodottoId: prodotti.salamella, quantita: 2 }],
+    });
+    await stampa.giroDiCoda();
+
+    const testo = cucina.ricevuti[0].toString('latin1');
+    assert.match(testo, /DA ASPORTO/);
+    // L'asporto si prepara nei contenitori, non nel piatto: va scritto.
+    assert.match(testo, /PREPARA DA PORTARE VIA/);
+    assert.match(testo, new RegExp(`N\\. ${o.numero}`));
+    assert.doesNotMatch(testo, /TAVOLO/);
+    assert.equal(o.tavolo, '', 'un asporto non deve portarsi dietro un tavolo');
+  });
+
+  test('il self service dice di ritirare al banco, senza istruzioni da asporto', async () => {
+    await svuotaCodaCompletamente();
+    cucina.ricevuti.length = 0;
+
+    ordini.creaOrdine({
+      idemKey: 'self-carta', cassaId: casse[1], servizio: 'self',
+      righe: [{ prodottoId: prodotti.salamella, quantita: 1 }],
+    });
+    await stampa.giroDiCoda();
+
+    const testo = cucina.ricevuti[0].toString('latin1');
+    assert.match(testo, /SELF SERVICE/);
+    assert.doesNotMatch(testo, /PORTARE VIA/, 'il self service si mangia lì: niente contenitori');
+    assert.doesNotMatch(testo, /TAVOLO/);
+  });
+
   test('una comanda di un reparto solo lo dichiara sulla carta', async () => {
     await svuotaCodaCompletamente();
     bar.ricevuti.length = 0;

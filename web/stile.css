@@ -393,6 +393,27 @@ pre.anteprima {
 }
 
 .altri-reparti { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Asporto e self service si preparano diversamente: il bollo sta in testa
+   alla scheda, dove lo si vede prima ancora di leggere i prodotti. */
+.bollo-servizio {
+  margin-left: auto;
+  align-self: flex-start;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: rgba(63, 111, 139, 0.3);
+  color: #9fd0ea;
+  border: 1px solid var(--blu);
+}
+.bollo-servizio.asporto {
+  background: rgba(217, 131, 36, 0.25);
+  color: var(--ambra);
+  border-color: var(--ambra);
+}
 .azione-ordine { min-height: 52px; font-size: 1.05rem; }
 
 /* ------------------------------------------------ monitor del pubblico */
@@ -421,11 +442,22 @@ body.monitor { background: #0b0907; }
   border: 3px solid var(--verde);
   border-radius: 16px;
   color: #fff;
+  text-align: center;
+  padding: 14px 10px 10px;
+  display: grid;
+  gap: 2px;
+}
+.numero-pronto .cifra {
   font-size: clamp(3.5rem, 9vw, 7rem);
   font-weight: 900;
-  text-align: center;
-  padding: 18px 10px;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
+}
+.numero-pronto .tipo {
+  font-size: 0.9rem;
+  color: var(--testo-tenue);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 /* Solo i numeri appena arrivati lampeggiano, per farsi notare da lontano. */
 .numero-pronto.nuovo { animation: appena 1s ease-in-out 4; }

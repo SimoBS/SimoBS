@@ -140,6 +140,23 @@ dice "Cucina: non ancora uscito", ma non blocca niente. Sotto pressione un
 blocco lo si aggira e basta, e i casi legittimi che non hai previsto ci sono
 sempre.
 
+### Senza tavolo: self service e asporto
+
+Chi non prende un tavolo ritira da solo al banco, quindi non c'è nessun tavolo
+da scrivere e viene **chiamato per numero**. Per questo su quelle comande il
+blocco grande non è la parola asporto ma il **numero**: è quello che chi
+consegna deve leggere da lontano per capire a chi sta dando il pacchetto.
+
+I numeri pronti compaiono sul monitor `chiamate.html`, da mettere su un
+televisore rivolto al pubblico, con sotto la scritta *asporto* o *self
+service*. Chiamare a voce resta possibile: il monitor non toglie niente,
+aggiunge solo che il cliente può guardare invece di stare in ascolto.
+
+L'**asporto non è solo un modo di ritirare**: si prepara nei contenitori
+invece che nel piatto, ed è lavoro diverso. Sulla comanda di reparto compare
+scritto `>> PREPARA DA PORTARE VIA <<`, e alla postazione l'ordine porta un
+bollo arancione. Il self service invece si mangia lì e non ha quella riga.
+
 ### Ordini di un reparto solo
 
 Un ordine di sole birre, o di solo cibo, non ha niente da attendere: si
@@ -305,7 +322,7 @@ ufficiale.
 ## Sviluppo
 
 ```bash
-npm test                          # 90 test: stampa, ordini, magazzino, report, reparti
+npm test                          # 92 test: stampa, ordini, magazzino, report, reparti
 node --no-warnings src/seed.js --reset   # riparte da un menu di esempio pulito
 ```
 

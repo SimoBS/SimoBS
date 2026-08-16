@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { Documento } from './escpos.js';
 import { euro } from './stampa.js';
 import { consumoSerata } from './magazzino.js';
+import { tempiReparto } from './avanzamento.js';
 
 /**
  * Nota valida per tutti i report: gli ordini annullati sono sempre esclusi dai
@@ -151,12 +152,24 @@ export function chiusuraCassa(serataId, cassaId) {
   return { cassa, totali, ...complessivo, storni };
 }
 
+/** Quanto pesano tavolo, self-service e asporto: pesa sull'organizzazione. */
+export const vendutoPerServizio = (serataId) => db.prepare(`
+  SELECT servizio,
+         COUNT(*)                        AS ordini,
+         COALESCE(SUM(coperti), 0)       AS coperti,
+         COALESCE(SUM(totale_cent), 0)   AS incasso_cent
+  FROM ordini WHERE serata_id = ? AND annullato = 0
+  GROUP BY servizio ORDER BY incasso_cent DESC
+`).all(serataId);
+
 export function reportCompleto(serataId) {
   const serata = db.prepare('SELECT * FROM serate WHERE id = ?').get(serataId);
   if (!serata) return null;
   return {
     serata,
     riepilogo: riepilogoSerata(serataId),
+    perServizio: vendutoPerServizio(serataId),
+    tempiReparto: tempiReparto(serataId),
     perProdotto: vendutoPerProdotto(serataId),
     perReparto: vendutoPerReparto(serataId),
     perCassa: vendutoPerCassa(serataId),

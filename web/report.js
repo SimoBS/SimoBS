@@ -88,6 +88,22 @@ async function carica() {
     { titolo: 'Incasso', num: true, valore: (p) => `€ ${euro(p.incasso_cent)}` },
   ], r.perPagamento);
 
+  const NOMI_SERVIZIO = { tavolo: 'Al tavolo', self: 'Self service', asporto: 'Asporto' };
+  tabella($('tabella-servizio'), [
+    { titolo: 'Modalità', valore: (s) => NOMI_SERVIZIO[s.servizio] ?? s.servizio },
+    { titolo: 'Ordini', num: true, valore: (s) => s.ordini },
+    { titolo: 'Coperti', num: true, valore: (s) => s.coperti },
+    { titolo: 'Incasso', num: true, valore: (s) => `€ ${euro(s.incasso_cent)}` },
+  ], d.perServizio ?? []);
+
+  tabella($('tabella-tempi'), [
+    { titolo: 'Reparto', valore: (t) => t.reparto },
+    { titolo: 'Vassoi usciti', num: true, valore: (t) => t.ordini },
+    { titolo: 'Attesa media', num: true, valore: (t) => `${t.attesa_media_min} min` },
+    { titolo: 'Lavorazione media', num: true, valore: (t) => `${t.lavorazione_media_min} min` },
+  ], d.tempiReparto ?? [],
+  'Nessun vassoio ancora uscito: i tempi compaiono quando i reparti sparano il codice a barre');
+
   tabella($('tabella-reparti'), [
     { titolo: 'Reparto', valore: (x) => x.nome },
     { titolo: 'Pezzi', num: true, valore: (x) => x.pezzi },

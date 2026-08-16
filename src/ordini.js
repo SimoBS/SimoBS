@@ -8,6 +8,9 @@ import { versoHtml } from './escpos.js';
 
 export class ErroreOrdine extends Error {}
 
+/** Al tavolo lo porta il cameriere; self e asporto se lo ritira il cliente. */
+export const SERVIZI = ['tavolo', 'self', 'asporto'];
+
 const leggiOrdine = (id) => db.prepare('SELECT * FROM ordini WHERE id = ?').get(id);
 const leggiRighe = (ordineId) => db.prepare(`
   SELECT r.*, p.nome_comanda
@@ -149,11 +152,18 @@ export function creaOrdine(dati) {
     const numero = db.prepare('SELECT COALESCE(MAX(numero), 0) + 1 AS n FROM ordini WHERE serata_id = ?')
       .get(serata.id).n;
 
+    // Chi non ha un tavolo mangia in piedi o porta via: in quel caso il numero
+    // di tavolo non esiste e non va stampato, altrimenti il cameriere gira a
+    // vuoto cercando un tavolo che nessuno ha occupato.
+    const servizio = SERVIZI.includes(dati.servizio) ? dati.servizio : 'tavolo';
+    const tavolo = servizio === 'tavolo' ? String(dati.tavolo ?? '').trim().slice(0, 12) : '';
+    if (servizio === 'tavolo' && !tavolo) throw new ErroreOrdine('manca il numero di tavolo');
+
     const info = db.prepare(`
       INSERT INTO ordini
         (serata_id, cassa_id, numero, ts, totale_cent, sconto_cent,
-         pagamento, operatore, coperti, nota, idem_key)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         pagamento, operatore, coperti, nota, idem_key, tavolo, servizio)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       serata.id,
       cassa.id,
@@ -166,6 +176,8 @@ export function creaOrdine(dati) {
       Math.max(0, Math.round(Number(dati.coperti ?? 0))),
       String(dati.nota ?? '').slice(0, 200),
       idemKey,
+      tavolo,
+      servizio,
     );
     const ordineId = Number(info.lastInsertRowid);
 

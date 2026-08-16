@@ -165,16 +165,28 @@ rotta('POST', '/api/reparto/:id/scansione', (ctx) => avanzamento.scansiona({
 }));
 
 /** Stesso effetto della pistola, per quando il codice è illeggibile. */
-rotta('POST', '/api/reparto/:id/pronto', (ctx) => avanzamento.segnaPronto({
+rotta('POST', '/api/reparto/:id/avanza', (ctx) => avanzamento.avanza({
   ordineId: intero(ctx.corpo.ordineId),
   repartoId: intero(ctx.parametri.id),
   operatore: ctx.corpo.operatore ?? '',
 }));
 
-rotta('POST', '/api/reparto/:id/riapri', (ctx) => avanzamento.riapri({
+rotta('POST', '/api/reparto/:id/indietro', (ctx) => avanzamento.indietro({
   ordineId: intero(ctx.corpo.ordineId),
   repartoId: intero(ctx.parametri.id),
 }));
+
+/** Lavagna di produzione per il monitor appeso al reparto. */
+rotta('GET', '/api/reparto/:id/monitor', (ctx) => {
+  const repartoId = intero(ctx.parametri.id);
+  const reparto = db.prepare('SELECT nome FROM reparti WHERE id = ?').get(repartoId);
+  if (!reparto) throw new ErroreRichiesta('reparto inesistente', 404);
+  return {
+    reparto: reparto.nome,
+    daProdurre: avanzamento.daProdurre(repartoId),
+    riepilogo: avanzamento.riepilogoMonitor(repartoId),
+  };
+});
 
 /** Numeri pronti al ritiro, per il monitor rivolto al pubblico. */
 rotta('GET', '/api/chiamate', () => ({

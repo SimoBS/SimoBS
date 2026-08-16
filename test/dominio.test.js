@@ -44,12 +44,14 @@ before(async () => {
 });
 
 const nuovoOrdine = (righe, extra = {}) => ordini.creaOrdine({
+  tavolo: '5',
   idemKey: `k-${Math.random()}`, cassaId, righe, ...extra,
 });
 
 describe('creazione ordini', () => {
   test('il totale si calcola sui prezzi del database, non su quelli mandati dal client', () => {
     const o = ordini.creaOrdine({
+      tavolo: '5',
       idemKey: 'prezzo-falso',
       cassaId,
       // Un client malevolo (o un bug) prova a imporre il prezzo: va ignorato.
@@ -59,8 +61,8 @@ describe('creazione ordini', () => {
   });
 
   test('la stessa idemKey non incassa due volte', () => {
-    const primo = ordini.creaOrdine({ idemKey: 'ripetuta', cassaId, righe: [{ prodottoId: birraId, quantita: 1 }] });
-    const secondo = ordini.creaOrdine({ idemKey: 'ripetuta', cassaId, righe: [{ prodottoId: birraId, quantita: 1 }] });
+    const primo = ordini.creaOrdine({ tavolo: '5', idemKey: 'ripetuta', cassaId, righe: [{ prodottoId: birraId, quantita: 1 }] });
+    const secondo = ordini.creaOrdine({ tavolo: '5', idemKey: 'ripetuta', cassaId, righe: [{ prodottoId: birraId, quantita: 1 }] });
     assert.equal(secondo.duplicato, true);
     assert.equal(secondo.id, primo.id);
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM ordini WHERE idem_key = ?').get('ripetuta').n, 1);

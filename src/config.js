@@ -27,6 +27,9 @@ const PREDEFINITA = {
   timeoutStampanteMs: 4000,
   // Stampa anche uno scontrino di cortesia per il cliente oltre alle comande.
   scontrinoCliente: true,
+  // Due letture della pistola più vicine di così sono lo stesso gesto: molti
+  // lettori raddoppiano il bip. Alzalo se il tuo lo fa spesso.
+  secondiAntirimbalzoPistola: 3,
 };
 
 function caricaConfig() {

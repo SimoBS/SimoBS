@@ -13,7 +13,8 @@
     <span class="serata" id="etichetta-serata"></span>
     <a class="navlink" href="cassa.html">Cassa</a>
     <a class="navlink" href="reparto.html">Reparto</a>
-    <a class="navlink" href="chiamate.html">Monitor</a>
+    <a class="navlink" href="monitor.html">Monitor reparto</a>
+    <a class="navlink" href="chiamate.html">Ritiri</a>
     <a class="navlink" href="report.html">Report</a>
     <a class="navlink" href="gestione.html">Gestione</a>
     <div class="spinta">
@@ -35,17 +36,30 @@
     </div>
 
     <div class="scontrino">
-      <div class="righe" id="righe"></div>
-      <div class="totali">
+      <!--
+        Prima cosa che si chiede al cliente, prima ancora dei prodotti: dove va
+        a finire questa roba. Il tavolo finisce stampato grande sulla comanda,
+        perché è l'unica indicazione che ha il cameriere per consegnare.
+      -->
+      <div class="destinazione">
+        <div class="servizi" id="servizi"></div>
         <div class="griglia-campi" style="grid-template-columns:1fr 1fr;">
           <div class="campo">
-            <label for="sconto">Sconto €</label>
-            <input id="sconto" inputmode="decimal" value="0" autocomplete="off">
+            <label for="tavolo">Tavolo</label>
+            <input id="tavolo" inputmode="numeric" autocomplete="off" placeholder="n.">
           </div>
           <div class="campo">
             <label for="coperti">Coperti</label>
             <input id="coperti" inputmode="numeric" value="0" autocomplete="off">
           </div>
+        </div>
+      </div>
+
+      <div class="righe" id="righe"></div>
+      <div class="totali">
+        <div class="campo">
+          <label for="sconto">Sconto €</label>
+          <input id="sconto" inputmode="decimal" value="0" autocomplete="off">
         </div>
         <input id="nota-ordine" placeholder="Nota per i reparti (facoltativa)" autocomplete="off">
         <div class="pagamenti" id="pagamenti"></div>

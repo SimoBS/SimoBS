@@ -12,7 +12,8 @@
     <h1 id="titolo-reparto">Postazione</h1>
     <a class="navlink" href="cassa.html">Cassa</a>
     <a class="navlink" href="reparto.html">Reparto</a>
-    <a class="navlink" href="chiamate.html">Monitor</a>
+    <a class="navlink" href="monitor.html">Monitor reparto</a>
+    <a class="navlink" href="chiamate.html">Ritiri</a>
     <a class="navlink" href="report.html">Report</a>
     <a class="navlink" href="gestione.html">Gestione</a>
     <div class="spinta">
@@ -39,21 +40,21 @@
       <section>
         <h2>Da preparare <span class="conteggio" id="n-da-fare">0</span></h2>
         <p class="spiega">
-          I più vecchi in alto. Se l'altro reparto ha già finito, l'ordine è
-          segnato: quel numero aspetta solo te.
+          I più vecchi in alto. Se l'altro reparto è già uscito, la comanda è
+          evidenziata: quel tavolo aspetta solo te.
         </p>
         <div id="da-fare" class="lista-ordini"></div>
       </section>
 
       <section>
-        <h2>Fatti, in attesa dell'altro reparto <span class="conteggio" id="n-attesa">0</span></h2>
+        <h2>In preparazione <span class="conteggio" id="n-attesa">0</span></h2>
         <p class="spiega">
-          La tua parte è pronta ma il cliente non è ancora stato chiamato,
-          perché manca l'altro reparto.
+          Comande prese in carico. Spara di nuovo quando passi il vassoio
+          al cameriere: è quel momento che tiene allineati bar e cucina.
         </p>
         <div id="in-attesa" class="lista-ordini"></div>
 
-        <h2 style="margin-top:22px;">Consegnati di recente</h2>
+        <h2 style="margin-top:22px;">Vassoi usciti di recente</h2>
         <div id="completati" class="lista-ordini"></div>
       </section>
     </div>

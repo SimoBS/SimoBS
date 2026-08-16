@@ -28,13 +28,25 @@ function fraSecondi(secondi) {
  * Comanda di reparto: quella che il cuoco legge di corsa, di sera, sotto una
  * lampada. Nessun prezzo, numero enorme, quantità e prodotto a corpo doppio.
  */
+/** "TAVOLO 12", "ASPORTO" o "SELF SERVICE": la destinazione del vassoio. */
+export function destinazione(ordine) {
+  if (ordine.servizio === 'asporto') return 'ASPORTO';
+  if (ordine.servizio === 'self') return 'SELF SERVICE';
+  return `TAVOLO ${ordine.tavolo}`;
+}
+
 export function comandaReparto({ ordine, righe, reparto, cassa }) {
   const doc = new Documento(config.colonneStampante);
   doc.titolo(reparto.nome.toUpperCase());
   doc.separatore('=');
-  doc.testo(`N. ${ordine.numero}`, { size: 3, align: 'center', bold: true });
+  // Il tavolo prima e più grande del numero d'ordine: è quello che legge il
+  // cameriere quando prende il vassoio, ed è l'unica cosa che gli dice dove
+  // portarlo. Il numero d'ordine serve solo a ritrovare la comanda.
+  doc.testo(destinazione(ordine), { size: 3, align: 'center', bold: true });
+  if (ordine.coperti > 0) doc.testo(`${ordine.coperti} coperti`, { align: 'center' });
   doc.separatore('=');
-  doc.colonne(cassa?.nome ?? '', oraDi(ordine.ts));
+  doc.colonne(`comanda n. ${ordine.numero}`, oraDi(ordine.ts));
+  doc.colonne(cassa?.nome ?? '', '');
   doc.separatore();
   for (const r of righe) {
     doc.testo(`${r.quantita} x ${r.nome_comanda || r.nome}`, { size: 2, bold: true });
@@ -64,7 +76,8 @@ export function comandaStorno({ ordine, righe, reparto, cassa, motivo }) {
   doc.titolo('ANNULLATO');
   doc.separatore('*');
   doc.testo(reparto.nome.toUpperCase(), { align: 'center', bold: true });
-  doc.testo(`N. ${ordine.numero}`, { size: 3, align: 'center', bold: true });
+  doc.testo(destinazione(ordine), { size: 2, align: 'center', bold: true });
+  doc.testo(`n. ${ordine.numero}`, { align: 'center' });
   doc.separatore('=');
   doc.testo('NON PREPARARE:', { bold: true });
   for (const r of righe) {
@@ -88,6 +101,7 @@ export function scontrinoCliente({ ordine, righe, serata, cassa }) {
   doc.titolo(config.nomeFesta);
   doc.testo(serata.nome, { align: 'center' });
   doc.separatore('=');
+  doc.testo(destinazione(ordine), { size: 2, align: 'center', bold: true });
   doc.testo(`N. ${ordine.numero}`, { size: 3, align: 'center', bold: true });
   doc.separatore('=');
   for (const r of righe) {

@@ -217,6 +217,26 @@ const MIGRAZIONI = [
     SELECT DISTINCT ordine_id, reparto_id, 'da_fare' FROM righe;
     `,
   },
+  {
+    id: '004-tavolo-servizio-e-due-tempi',
+    sql: `
+    -- Il cameriere porta il vassoio al tavolo: senza questo numero non sa dove.
+    -- Sulla comanda va stampato più grande del numero d'ordine.
+    ALTER TABLE ordini ADD COLUMN tavolo TEXT NOT NULL DEFAULT '';
+
+    -- Chi non ha un tavolo mangia in piedi o porta via: cambia cosa si stampa
+    -- (un asporto non ha né tavolo né coperti) e come si consegna.
+    ALTER TABLE ordini ADD COLUMN servizio TEXT NOT NULL DEFAULT 'tavolo';
+
+    -- La lavorazione ha due tempi, non uno: si spara una volta quando si prende
+    -- in carico la comanda e una quando il vassoio esce verso il cameriere.
+    -- Il secondo momento è quello che conta per tenere allineati bar e cucina;
+    -- la distanza fra i due dice quanto ci mette davvero un reparto.
+    ALTER TABLE avanzamento ADD COLUMN preso_il TEXT;
+    ALTER TABLE avanzamento RENAME COLUMN pronto_il TO uscito_il;
+    UPDATE avanzamento SET stato = 'uscito' WHERE stato = 'pronto';
+    `,
+  },
 ];
 
 function applicaMigrazioni() {

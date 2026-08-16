@@ -10,6 +10,11 @@ process.env.SIMOBS_DATI = mkdtempSync(join(tmpdir(), 'simobs-stampa-'));
 let db, anagrafica, ordini, stampa, escpos, config;
 let cassaId, repartoId, prodottoId;
 
+// Le stampanti finte aperte da ogni prova. Vengono chiuse tutte alla fine
+// anche se un test fallisce a metà: un socket rimasto aperto terrebbe vivo il
+// processo e la suite resterebbe appesa invece di riportare l'errore.
+const stampantiAperte = [];
+
 /** Stampante finta: accetta connessioni e conserva i byte ricevuti. */
 function stampanteFinta() {
   const ricevuti = [];
@@ -18,12 +23,18 @@ function stampanteFinta() {
     s.on('data', (c) => pezzi.push(c));
     s.on('close', () => ricevuti.push(Buffer.concat(pezzi)));
   });
-  return {
+  const finta = {
     ricevuti,
     ascolta: () => new Promise((r) => server.listen(0, '127.0.0.1', () => r(server.address().port))),
-    chiudi: () => new Promise((r) => server.close(r)),
+    chiudi: () => new Promise((r) => server.close(() => r())),
   };
+  stampantiAperte.push(finta);
+  return finta;
 }
+
+after(async () => {
+  await Promise.all(stampantiAperte.map((s) => s.chiudi().catch(() => {})));
+});
 
 before(async () => {
   ({ db } = await import('../src/db.js'));
@@ -46,6 +57,7 @@ before(async () => {
 describe('coda di stampa', () => {
   test('un reparto senza stampante non accoda nulla: è una scelta di allestimento', () => {
     const o = ordini.creaOrdine({
+      tavolo: '5',
       idemKey: 'senza-stampante', cassaId, righe: [{ prodottoId, quantita: 1 }],
     });
     const n = db.prepare('SELECT COUNT(*) AS n FROM stampe WHERE ordine_id = ?').get(o.id).n;
@@ -58,6 +70,7 @@ describe('coda di stampa', () => {
     anagrafica.salvaReparto({ id: repartoId, stampante_host: '127.0.0.1', stampante_porta: porta });
 
     const o = ordini.creaOrdine({
+      tavolo: '5',
       idemKey: 'con-stampante', cassaId, righe: [{ prodottoId, quantita: 3, nota: 'senza cipolla' }],
     });
     await stampa.giroDiCoda();
@@ -65,7 +78,10 @@ describe('coda di stampa', () => {
     assert.equal(finta.ricevuti.length, 1, 'la stampante non ha ricevuto nulla');
     const testo = finta.ricevuti[0].toString('latin1');
     assert.match(testo, /CUCINA/);
-    assert.match(testo, new RegExp(`N\\. ${o.numero}`));
+    // Sulla comanda di reparto domina il tavolo: è quello che legge il
+    // cameriere per sapere dove portare il vassoio.
+    assert.match(testo, /TAVOLO 5/);
+    assert.match(testo, new RegExp(`comanda n. ${o.numero}`));
     assert.match(testo, /3 x SALAM/);
     assert.match(testo, /senza cipolla/);
 
@@ -79,7 +95,7 @@ describe('coda di stampa', () => {
     const porta = await finta.ascolta();
     anagrafica.salvaReparto({ id: repartoId, stampante_host: '127.0.0.1', stampante_porta: porta, copie: 2 });
 
-    ordini.creaOrdine({ idemKey: 'due-copie', cassaId, righe: [{ prodottoId, quantita: 1 }] });
+    ordini.creaOrdine({ tavolo: '5', idemKey: 'due-copie', cassaId, righe: [{ prodottoId, quantita: 1 }] });
     await stampa.giroDiCoda();
 
     assert.equal(finta.ricevuti.length, 2);
@@ -90,7 +106,7 @@ describe('coda di stampa', () => {
   test('una stampante spenta non perde la comanda: resta in attesa e ritenta', async () => {
     // Porta chiusa: nessuno in ascolto, come una stampante staccata.
     anagrafica.salvaReparto({ id: repartoId, stampante_host: '127.0.0.1', stampante_porta: 1 });
-    const o = ordini.creaOrdine({ idemKey: 'stampante-giu', cassaId, righe: [{ prodottoId, quantita: 1 }] });
+    const o = ordini.creaOrdine({ tavolo: '5', idemKey: 'stampante-giu', cassaId, righe: [{ prodottoId, quantita: 1 }] });
 
     await stampa.giroDiCoda();
 
@@ -121,7 +137,7 @@ describe('coda di stampa', () => {
     const porta = await finta.ascolta();
     anagrafica.salvaReparto({ id: repartoId, stampante_host: '127.0.0.1', stampante_porta: porta });
 
-    const o = ordini.creaOrdine({ idemKey: 'da-stornare', cassaId, righe: [{ prodottoId, quantita: 2 }] });
+    const o = ordini.creaOrdine({ tavolo: '5', idemKey: 'da-stornare', cassaId, righe: [{ prodottoId, quantita: 2 }] });
     await stampa.giroDiCoda();
     finta.ricevuti.length = 0;
 
@@ -141,7 +157,7 @@ describe('coda di stampa', () => {
     const porta = await finta.ascolta();
     anagrafica.salvaReparto({ id: repartoId, stampante_host: '127.0.0.1', stampante_porta: porta });
 
-    const o = ordini.creaOrdine({ idemKey: 'da-ristampare', cassaId, righe: [{ prodottoId, quantita: 1 }] });
+    const o = ordini.creaOrdine({ tavolo: '5', idemKey: 'da-ristampare', cassaId, righe: [{ prodottoId, quantita: 1 }] });
     await stampa.giroDiCoda();
     const primoGiro = finta.ricevuti.length;
 
@@ -157,7 +173,7 @@ describe('coda di stampa', () => {
     anagrafica.salvaReparto({ id: repartoId, stampante_host: null });
     anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'rete', stampante_host: '127.0.0.1', stampante_porta: porta });
 
-    const o = ordini.creaOrdine({ idemKey: 'scontrino-rete', cassaId, righe: [{ prodottoId, quantita: 2 }] });
+    const o = ordini.creaOrdine({ tavolo: '5', idemKey: 'scontrino-rete', cassaId, righe: [{ prodottoId, quantita: 2 }] });
     await stampa.giroDiCoda();
 
     assert.equal(finta.ricevuti.length, 1);
@@ -181,14 +197,14 @@ describe('scontrino su stampante collegata al PC della cassa', () => {
     anagrafica.salvaReparto({ id: repartoId, stampante_host: null });
     anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'locale' });
 
-    const o = ordini.creaOrdine({ idemKey: 'scontrino-locale', cassaId, righe: [{ prodottoId, quantita: 1 }] });
+    const o = ordini.creaOrdine({ tavolo: '5', idemKey: 'scontrino-locale', cassaId, righe: [{ prodottoId, quantita: 1 }] });
     const inCoda = db.prepare('SELECT COUNT(*) AS n FROM stampe WHERE ordine_id = ?').get(o.id).n;
     assert.equal(inCoda, 0);
   });
 
   test('torna alla cassa come HTML con numero, prodotto e totale giusti', () => {
     anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'locale' });
-    const o = ordini.creaOrdine({ idemKey: 'html-scontrino', cassaId, righe: [{ prodottoId, quantita: 3 }] });
+    const o = ordini.creaOrdine({ tavolo: '5', idemKey: 'html-scontrino', cassaId, righe: [{ prodottoId, quantita: 3 }] });
 
     assert.ok(o.scontrinoHtml, 'lo scontrino HTML non è stato prodotto');
     assert.match(o.scontrinoHtml, /^<!doctype html>/);
@@ -201,8 +217,8 @@ describe('scontrino su stampante collegata al PC della cassa', () => {
 
   test('il rinvio di un ordine già registrato restituisce di nuovo lo scontrino da stampare', () => {
     anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'locale' });
-    const primo = ordini.creaOrdine({ idemKey: 'rinvio-html', cassaId, righe: [{ prodottoId, quantita: 1 }] });
-    const secondo = ordini.creaOrdine({ idemKey: 'rinvio-html', cassaId, righe: [{ prodottoId, quantita: 1 }] });
+    const primo = ordini.creaOrdine({ tavolo: '5', idemKey: 'rinvio-html', cassaId, righe: [{ prodottoId, quantita: 1 }] });
+    const secondo = ordini.creaOrdine({ tavolo: '5', idemKey: 'rinvio-html', cassaId, righe: [{ prodottoId, quantita: 1 }] });
     assert.equal(secondo.duplicato, true);
     assert.equal(secondo.id, primo.id);
     assert.ok(secondo.scontrinoHtml, 'la cassa che ritenta non ha mai stampato: lo scontrino va rimandato');
@@ -210,7 +226,7 @@ describe('scontrino su stampante collegata al PC della cassa', () => {
 
   test('una cassa che non consegna scontrini non produce nulla', () => {
     anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'nessuna' });
-    const o = ordini.creaOrdine({ idemKey: 'niente-scontrino', cassaId, righe: [{ prodottoId, quantita: 1 }] });
+    const o = ordini.creaOrdine({ tavolo: '5', idemKey: 'niente-scontrino', cassaId, righe: [{ prodottoId, quantita: 1 }] });
     assert.equal(o.scontrinoHtml, null);
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM stampe WHERE ordine_id = ?').get(o.id).n, 0);
   });
@@ -221,7 +237,7 @@ describe('scontrino su stampante collegata al PC della cassa', () => {
     anagrafica.salvaCassa({ id: cassaId, modo_stampa: 'locale' });
     anagrafica.salvaReparto({ id: repartoId, stampante_host: '127.0.0.1', stampante_porta: porta });
 
-    const o = ordini.creaOrdine({ idemKey: 'misto', cassaId, righe: [{ prodottoId, quantita: 2 }] });
+    const o = ordini.creaOrdine({ tavolo: '5', idemKey: 'misto', cassaId, righe: [{ prodottoId, quantita: 2 }] });
     await stampa.giroDiCoda();
 
     assert.ok(o.scontrinoHtml, 'lo scontrino cliente esce dal browser');

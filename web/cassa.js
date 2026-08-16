@@ -1,6 +1,11 @@
 import { api, euro, inCentesimi, el, messaggio, conErrori, evidenziaNav, stampaDalBrowser } from './comune.js';
 
 const PAGAMENTI = ['contanti', 'pos', 'gettoni'];
+const SERVIZI = [
+  ['tavolo', 'Al tavolo'],
+  ['self', 'Self service'],
+  ['asporto', 'Asporto'],
+];
 const CHIAVE_CODA = 'simobs.coda';
 const CHIAVE_CASSA = 'simobs.cassa';
 const CHIAVE_OPERATORE = 'simobs.operatore';
@@ -26,6 +31,7 @@ const stato = {
   categoriaAttiva: null,
   carrello: [],
   pagamento: 'contanti',
+  servizio: 'tavolo',
   cassaId: null,
   collegato: true,
   ultimoScontrino: null,
@@ -172,6 +178,29 @@ function disegnaScontrino() {
   $('incassa').disabled = stato.carrello.length === 0;
 }
 
+function disegnaServizi() {
+  $('servizi').replaceChildren(...SERVIZI.map(([valore, etichetta]) =>
+    el('button', {
+      classe: valore === stato.servizio ? 'attivo' : '',
+      testo: etichetta,
+      onclick: () => {
+        stato.servizio = valore;
+        disegnaServizi();
+        if (valore === 'tavolo') $('tavolo').focus();
+      },
+    })));
+
+  // Senza tavolo non c'è niente da scrivere, e i coperti non si contano:
+  // i campi si spengono invece di restare lì a farsi compilare per sbaglio.
+  const alTavolo = stato.servizio === 'tavolo';
+  $('tavolo').disabled = !alTavolo;
+  $('coperti').disabled = !alTavolo;
+  if (!alTavolo) {
+    $('tavolo').value = '';
+    $('coperti').value = '0';
+  }
+}
+
 function disegnaPagamenti() {
   $('pagamenti').replaceChildren(...PAGAMENTI.map((p) =>
     el('button', {
@@ -184,9 +213,12 @@ function disegnaPagamenti() {
     })));
 }
 
-function mostraBrindisi(numero, totale) {
-  $('brindisi-numero').textContent = numero;
-  $('brindisi-totale').textContent = `€ ${euro(totale)}`;
+const destinazione = (o) => (o.servizio === 'asporto' ? 'Asporto'
+  : o.servizio === 'self' ? 'Self service' : `Tavolo ${o.tavolo}`);
+
+function mostraBrindisi(esito) {
+  $('brindisi-numero').textContent = esito.numero;
+  $('brindisi-totale').textContent = `${destinazione(esito)} — € ${euro(esito.totale_cent)}`;
   $('brindisi').classList.add('visibile');
   clearTimeout(mostraBrindisi.timer);
   mostraBrindisi.timer = setTimeout(chiudiBrindisi, 4000);
@@ -210,13 +242,23 @@ function svuotaCarrello() {
   stato.carrello = [];
   $('sconto').value = '0';
   $('coperti').value = '0';
+  $('tavolo').value = '';
   $('nota-ordine').value = '';
+  // Il servizio torna al caso più frequente, pronto per il cliente dopo.
+  stato.servizio = 'tavolo';
+  disegnaServizi();
   disegnaScontrino();
 }
 
 async function incassa() {
   if (stato.carrello.length === 0) return;
   if (!stato.cassaId) return messaggio('Scegli la postazione di cassa', 'errore');
+
+  const tavolo = $('tavolo').value.trim();
+  if (stato.servizio === 'tavolo' && !tavolo) {
+    $('tavolo').focus();
+    return messaggio('Manca il numero di tavolo: senza, il cameriere non sa dove portare il vassoio.', 'errore');
+  }
 
   const ordine = {
     // La chiave nasce QUI e non sul server: è quella che rende sicuro il
@@ -225,6 +267,8 @@ async function incassa() {
     cassaId: stato.cassaId,
     operatore: $('operatore').value.trim(),
     pagamento: stato.pagamento,
+    servizio: stato.servizio,
+    tavolo,
     scontoCent: scontoCent(),
     coperti: Number($('coperti').value) || 0,
     nota: $('nota-ordine').value.trim(),
@@ -239,7 +283,7 @@ async function incassa() {
     const esito = await api('/api/ordini', { method: 'POST', corpo: ordine });
     stato.collegato = true;
     svuotaCarrello();
-    mostraBrindisi(esito.numero, esito.totale_cent);
+    mostraBrindisi(esito);
     aggiornaStatoRete();
     // Le comande di Cucina e Bar le manda il server alle stampanti di rete.
     // Lo scontrino del cliente arriva invece qui come HTML, perché la sua
@@ -318,6 +362,7 @@ async function aggiornaStato() {
 
 async function avvia() {
   evidenziaNav();
+  disegnaServizi();
   disegnaPagamenti();
   disegnaScontrino();
 

@@ -15,18 +15,26 @@ function attesaMinuti(ts) {
   return diff;
 }
 
+const destinazione = (o) => (o.servizio === 'asporto' ? 'ASPORTO'
+  : o.servizio === 'self' ? 'SELF' : `TAVOLO ${o.tavolo}`);
+
+const ETICHETTE = { da_fare: 'da fare', in_lavorazione: 'in preparazione', uscito: 'uscito' };
+
 function schedaOrdine(ordine, { azione, etichettaAzione, classeAzione }) {
   const altri = ordine.reparti.filter((r) => r.reparto_id !== stato.repartoId);
-  const altriPronti = altri.length > 0 && altri.every((r) => r.stato === 'pronto');
+  const altriUsciti = altri.length > 0 && altri.every((r) => r.stato === 'uscito');
   const attesa = attesaMinuti(ordine.ts);
 
   return el('article', {
-    classe: `ordine ${altriPronti && azione ? 'sollecito' : ''} ${attesa >= 10 && azione ? 'in-ritardo' : ''}`,
+    classe: `ordine ${altriUsciti && azione ? 'sollecito' : ''} ${attesa >= 10 && azione ? 'in-ritardo' : ''}`,
   }, [
     el('header', {}, [
-      el('span', { classe: 'numero-ordine', testo: `${ordine.numero}` }),
+      // Il tavolo domina: è quello che serve a chi monta il vassoio e a chi lo
+      // porta. Il numero di comanda serve solo a ritrovare il pezzo di carta.
+      el('span', { classe: 'numero-ordine', testo: destinazione(ordine) }),
       el('div', { classe: 'meta' }, [
-        el('div', { testo: `${ordine.ts.slice(11, 16)} · ${ordine.cassa}` }),
+        el('div', { testo: `comanda n. ${ordine.numero} · ${ordine.ts.slice(11, 16)} · ${ordine.cassa}` }),
+        ordine.coperti > 0 ? el('div', { testo: `${ordine.coperti} coperti` }) : null,
         el('div', { classe: attesa >= 10 ? 'attesa lunga' : 'attesa', testo: `${attesa} min` }),
       ]),
     ]),
@@ -44,11 +52,11 @@ function schedaOrdine(ordine, { azione, etichettaAzione, classeAzione }) {
     altri.length > 0
       ? el('div', { classe: 'altri-reparti' }, altri.map((r) =>
         el('span', {
-          classe: `pillola ${r.stato === 'pronto' ? 'ok' : 'basso'}`,
-          testo: `${r.reparto}: ${r.stato === 'pronto' ? 'pronto' : 'in lavorazione'}`,
+          classe: `pillola ${r.stato === 'uscito' ? 'ok' : 'basso'}`,
+          testo: `${r.reparto}: ${ETICHETTE[r.stato]}`,
         })))
       : el('div', { classe: 'altri-reparti' }, [
-        el('span', { classe: 'spiega', testo: 'nessun altro reparto su questo ordine' }),
+        el('span', { classe: 'spiega', testo: 'solo questo reparto su questo ordine' }),
       ]),
 
     azione
@@ -71,35 +79,40 @@ async function aggiorna() {
     stato.collegato = true;
 
     $('n-da-fare').textContent = coda.daFare.length;
-    $('n-attesa').textContent = coda.inAttesaDiAltri.length;
+    $('n-attesa').textContent = coda.inLavorazione.length;
 
     const vuoto = (testo) => el('p', { classe: 'spiega', testo });
+    const avanza = (ordine) => api(`/api/reparto/${stato.repartoId}/avanza`, {
+      method: 'POST',
+      corpo: { ordineId: ordine.id, operatore: $('operatore').value.trim() },
+    });
 
     $('da-fare').replaceChildren(...(coda.daFare.length
       ? coda.daFare.map((o) => schedaOrdine(o, {
-        etichettaAzione: 'Segna pronto',
-        classeAzione: 'bottone-verde azione-ordine',
-        azione: (ordine) => api(`/api/reparto/${stato.repartoId}/pronto`, {
-          method: 'POST',
-          corpo: { ordineId: ordine.id, operatore: $('operatore').value.trim() },
-        }),
+        etichettaAzione: 'Prendi in carico',
+        classeAzione: 'azione-ordine',
+        azione: avanza,
       }))
       : [vuoto('Niente da preparare.')]));
 
-    $('in-attesa').replaceChildren(...(coda.inAttesaDiAltri.length
-      ? coda.inAttesaDiAltri.map((o) => schedaOrdine(o, {
-        etichettaAzione: 'Rimetti in lavorazione',
+    $('in-attesa').replaceChildren(...(coda.inLavorazione.length
+      ? coda.inLavorazione.map((o) => schedaOrdine(o, {
+        etichettaAzione: 'Vassoio consegnato al cameriere',
+        classeAzione: 'bottone-verde azione-ordine',
+        azione: avanza,
+      }))
+      : [vuoto('Niente in preparazione.')]));
+
+    $('completati').replaceChildren(...(coda.usciti.length
+      ? coda.usciti.map((o) => schedaOrdine(o, {
+        etichettaAzione: 'Riporta indietro',
         classeAzione: 'azione-ordine',
-        azione: (ordine) => api(`/api/reparto/${stato.repartoId}/riapri`, {
+        azione: (ordine) => api(`/api/reparto/${stato.repartoId}/indietro`, {
           method: 'POST',
           corpo: { ordineId: ordine.id },
         }),
       }))
-      : [vuoto('Niente in attesa.')]));
-
-    $('completati').replaceChildren(...(coda.completatiDiRecente.length
-      ? coda.completatiDiRecente.map((o) => schedaOrdine(o, {}))
-      : [vuoto('Ancora nessun ordine consegnato.')]));
+      : [vuoto('Ancora nessun vassoio uscito.')]));
   } catch {
     stato.collegato = false;
   }
@@ -126,10 +139,24 @@ async function leggiCodice(codice) {
       method: 'POST',
       corpo: { codice, operatore: $('operatore').value.trim() },
     });
-    const mancanti = esito.reparti.filter((r) => r.stato !== 'pronto').map((r) => r.reparto);
-    if (esito.giaAnnullato) mostraEsito(`Comanda n. ${esito.numero} annullata`, 'ko');
-    else if (esito.completo) mostraEsito(`n. ${esito.numero} COMPLETO — si può consegnare`, 'ok');
-    else mostraEsito(`n. ${esito.numero} pronto qui, manca ancora: ${mancanti.join(', ')}`, 'parziale');
+    const dove = destinazione(esito);
+    const altriFuori = esito.reparti
+      .filter((r) => r.reparto_id !== stato.repartoId && r.stato !== 'uscito')
+      .map((r) => r.reparto);
+
+    if (esito.passaggio === 'rimbalzo') {
+      mostraEsito(`${dove}: letto un attimo fa, non ho fatto niente`, 'parziale');
+    } else if (esito.passaggio === 'gia_uscito') {
+      mostraEsito(`${dove}: questo vassoio è già uscito`, 'parziale');
+    } else if (esito.passaggio === 'in_lavorazione') {
+      mostraEsito(`${dove} — preso in carico. Spara di nuovo quando esce il vassoio.`, 'parziale');
+    } else if (altriFuori.length > 0) {
+      // Informativo, non bloccante: la regola "il cibo dopo il bere" la
+      // applicano le persone, il sistema si limita a dire come sta messo l'altro.
+      mostraEsito(`${dove} — vassoio uscito. ${altriFuori.join(', ')}: non ancora uscito.`, 'parziale');
+    } else {
+      mostraEsito(`${dove} — vassoio uscito. Ordine completo.`, 'ok');
+    }
     await aggiorna();
   } catch (err) {
     mostraEsito(err.message, 'ko');

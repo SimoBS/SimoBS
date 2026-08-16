@@ -80,6 +80,7 @@ describe('quattro casse in contemporanea', () => {
   test('quaranta vendite dalle quattro casse mantengono numeri unici e progressivi', () => {
     for (let i = 0; i < 40; i++) {
       ordini.creaOrdine({
+        tavolo: '5',
         idemKey: `carico-${i}`,
         cassaId: casse[i % 4],
         righe: [{ prodottoId: prodotti.birra, quantita: 1 }],
@@ -119,6 +120,7 @@ describe('quattro casse in contemporanea', () => {
     bar.ricevuti.length = 0;
 
     const o = ordini.creaOrdine({
+      tavolo: '5',
       idemKey: 'misto-reparti',
       cassaId: casse[2],
       righe: [
@@ -140,8 +142,8 @@ describe('quattro casse in contemporanea', () => {
     assert.match(testoBar, /3 x Media/);
     assert.doesNotMatch(testoBar, /Salamella/);
     // Lo stesso numero di comanda su entrambe: è così che il cliente ritira.
-    assert.match(testoCucina, new RegExp(`N\\. ${o.numero}`));
-    assert.match(testoBar, new RegExp(`N\\. ${o.numero}`));
+    assert.match(testoCucina, new RegExp(`comanda n. ${o.numero}`));
+    assert.match(testoBar, new RegExp(`comanda n. ${o.numero}`));
     // Lo scontrino invece esce dalla termica del PC di quella cassa.
     assert.ok(o.scontrinoHtml);
   });

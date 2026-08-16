@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitor reparto — SimoBS</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="stile.css">
+</head>
+<body class="monitor">
+  <!--
+    Monitor da appendere dentro al reparto, rivolto a chi sta al fuoco.
+    Mostra SOLO quante porzioni mancano: gli ordini uno per uno sono già sulla
+    carta in mano ai ragazzi che montano i vassoi, ripeterli qui toglierebbe
+    spazio all'unica cosa che serve a chi cucina.
+    Si sceglie il reparto con ?reparto=Cucina oppure dal menu in alto.
+  -->
+  <div class="monitor-testata">
+    <h1 id="titolo-monitor">Monitor</h1>
+    <div class="monitor-riepilogo" id="riepilogo"></div>
+    <select id="scelta-reparto" title="Quale reparto"></select>
+  </div>
+
+  <div class="lavagna" id="lavagna"></div>
+  <p class="monitor-nota" id="nota"></p>
+
+  <script type="module" src="monitor.js"></script>
+</body>
+</html>

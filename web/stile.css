@@ -192,6 +192,19 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .quantita button { width: 38px; height: 38px; padding: 0; font-size: 1.2rem; font-weight: 700; }
 .quantita .valore { min-width: 26px; text-align: center; font-weight: 700; }
 
+/* Dove va a finire l'ordine: si sceglie prima dei prodotti, in cima al pannello. */
+.destinazione {
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--bordo);
+  display: grid;
+  gap: 8px;
+}
+.servizi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.servizi button { min-height: 46px; font-size: 0.92rem; font-weight: 600; }
+.servizi button.attivo { background: var(--ambra); border-color: var(--ambra-scuro); color: #1a1206; }
+.destinazione input:disabled { opacity: 0.35; }
+#tavolo { font-size: 1.2rem; font-weight: 700; }
+
 .totali { border-top: 2px solid var(--bordo); padding: 12px; display: grid; gap: 8px; }
 
 .totale-grande {
@@ -357,7 +370,15 @@ pre.anteprima {
 .ordine.in-ritardo { border-left-color: var(--rosso); }
 
 .ordine header { display: flex; align-items: center; gap: 14px; }
-.numero-ordine { font-size: 2.4rem; font-weight: 900; line-height: 1; color: var(--ambra); }
+/* Contiene "TAVOLO 12" o "ASPORTO", non un numero secco: il tavolo è quello
+   che serve a chi monta il vassoio e a chi lo porta in sala. */
+.numero-ordine {
+  font-size: 1.7rem;
+  font-weight: 900;
+  line-height: 1.05;
+  color: var(--ambra);
+  white-space: nowrap;
+}
 .ordine .meta { font-size: 0.82rem; color: var(--testo-tenue); line-height: 1.4; }
 .ordine .attesa.lunga { color: #ff9382; font-weight: 700; }
 
@@ -413,6 +434,62 @@ body.monitor { background: #0b0907; }
 }
 
 .monitor-nota { text-align: center; color: var(--testo-tenue); padding: 0 20px 24px; font-size: 1.1rem; }
+
+/* ------------------------------- lavagna di produzione del reparto */
+
+.monitor-riepilogo { display: flex; gap: 26px; margin-left: auto; margin-right: 20px; }
+.riquadro-monitor { display: grid; justify-items: center; gap: 2px; }
+.riquadro-monitor .valore { font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.riquadro-monitor .etichetta {
+  font-size: 0.72rem;
+  color: var(--testo-tenue);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.riquadro-monitor.buono .valore { color: #8fd07a; }
+.riquadro-monitor.allarme .valore { color: #ff9382; }
+
+.lavagna {
+  flex: 1;
+  display: grid;
+  /* auto-fill e non auto-fit: con due sole voci in coda le schede devono
+     restare della loro larghezza, non stiracchiarsi per tutto lo schermo. */
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+  padding: 22px 26px;
+  align-content: start;
+}
+
+.voce-lavagna {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 20px;
+  align-items: center;
+  background: var(--pannello);
+  border: 1px solid var(--bordo);
+  border-left: 8px solid var(--ambra);
+  border-radius: 14px;
+  padding: 14px 20px;
+}
+.voce-lavagna .pezzi {
+  grid-row: 1 / 3;
+  font-size: var(--corpo, 3.2rem);
+  font-weight: 900;
+  line-height: 1;
+  color: var(--ambra);
+  font-variant-numeric: tabular-nums;
+  min-width: 2ch;
+  text-align: right;
+}
+.voce-lavagna .prodotto {
+  font-size: 1.5rem;
+  font-weight: 700;
+  align-self: end;
+  line-height: 1.15;
+}
+.voce-lavagna .in-corso { font-size: 0.95rem; color: var(--verde); align-self: start; }
+.voce-lavagna .in-corso.vuoto { color: var(--testo-tenue); }
 
 @media (max-width: 1000px) {
   .colonne-reparto { grid-template-columns: 1fr; }

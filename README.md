@@ -108,50 +108,79 @@ All'avvio la finestra stampa gli indirizzi da aprire sulle casse, tipo
 | Pagina | A cosa serve |
 |---|---|
 | `/cassa.html` | La cassa. È la pagina iniziale. |
-| `/reparto.html` | Postazione di Cucina o Bar, con la pistola del codice a barre. |
-| `/chiamate.html` | Monitor dei numeri pronti, da mettere su un televisore. |
+| `/reparto.html` | Postazione di Cucina o Bar, col portatile e la pistola. |
+| `/monitor.html` | Monitor appeso al reparto: porzioni da produrre. |
+| `/chiamate.html` | Monitor per il pubblico: numeri pronti al ritiro. |
 | `/gestione.html` | Serate, prodotti, prezzi, stampanti, magazzino, storni. |
 | `/report.html` | Incassi, andamento orario, venduto, confronto fra edizioni. |
 
-## Sincronizzare cucina e bar
+## Il giro di una serata
 
-Un ordine misto viene lavorato da due reparti che non si vedono fra loro. Se
-ognuno consegna appena ha finito, la birra arriva subito e il panino dieci
-minuti dopo. Per questo alle postazioni di **Cucina** e **Bar** c'è un PC con
-la pistola del codice a barre.
+1. Il cliente si siede e legge il menù dal QR sul tavolo.
+2. Va in cassa e dichiara **tavolo e coperti**. Se non ha un tavolo, l'ordine è
+   **self service** o **asporto**.
+3. La cassa incassa. Escono tre cose: lo scontrino al cliente dalla termica di
+   quel PC, la comanda al **Bar** con le sole righe del bar, la comanda in
+   **Cucina** con le sole righe della cucina.
+4. Dentro ogni reparto i ragazzi staccano la comanda, montano il vassoio e lo
+   passano al cameriere che lo porta al tavolo.
+5. Alla postazione si **spara due volte** con la pistola: una quando si prende
+   in carico la comanda, una quando il vassoio esce verso il cameriere.
 
-Ogni comanda e ogni scontrino portano stampato un **Code 39** con
-l'identificativo dell'ordine. Il giro è questo:
+### Perché due sparate
 
-1. La cassa incassa. Le comande escono a Cucina e Bar, lo scontrino al cliente.
-2. Ogni reparto prepara la **sua** parte: sulla postazione vede solo la propria
-   roba, la cucina non legge le birre.
-3. Quando ha finito, spara con la pistola sulla comanda (o sullo scontrino del
-   cliente, che porta lo stesso codice).
-4. Il numero compare sul monitor **solo quando tutti i reparti hanno letto**.
+La prima dice *quanto lavoro è stato preso*, la seconda *cosa è realmente
+uscito*. Solo la seconda permette di far rispettare la regola della casa —
+**il cibo esce sempre dopo il bere** — perché è l'unico momento in cui si sa
+che il vassoio del bar è già partito. La distanza fra le due dice anche quanto
+ci mette davvero un reparto, e finisce nei report.
 
-La sincronizzazione vera sta in una cosa piccola: ogni postazione vede a che
-punto è l'altra. Un ordine di cui il bar ha già spinato si accende di arancione
-in cucina — quel numero aspetta solo te. Sopra i dieci minuti di attesa diventa
-rosso.
+La regola è **mostrata, non imposta**: dopo la seconda sparata la postazione
+dice "Cucina: non ancora uscito", ma non blocca niente. Sotto pressione un
+blocco lo si aggira e basta, e i casi legittimi che non hai previsto ci sono
+sempre.
 
-Dettagli che contano:
+### I due schermi, che sono diversi
+
+**Postazione** (`reparto.html`) — il portatile con la pistola. Interattivo, si
+guarda da vicino. Mostra le comande divise nei tre momenti, ognuna col tavolo
+in grande e lo stato dell'altro reparto. Una comanda il cui altro reparto è già
+uscito si accende di arancione: quel tavolo aspetta solo te. Sopra i dieci
+minuti diventa rossa.
+
+**Monitor di reparto** (`monitor.html`) — il televisore appeso, per chi sta al
+fuoco. Mostra **solo le porzioni da produrre**, sommate per prodotto: *12
+salamelle, 4 grigliate*. Non ripete gli ordini uno per uno perché quelli sono
+già sulla carta in mano ai ragazzi, e ripeterli toglierebbe spazio all'unica
+cosa che serve a chi cucina. In alto pochi numeri: comande aperte, prese in
+carico, **pronti da far uscire** (quelli per cui l'altro reparto è già uscito)
+e attesa massima. Si fissa col reparto nell'indirizzo, `monitor.html?reparto=Cucina`,
+così riparte da solo dopo un riavvio.
+
+**Ritiri** (`chiamate.html`) — monitor per il pubblico, con i numeri pronti.
+Mostra **solo self service e asporto**: gli ordini al tavolo li porta il
+cameriere, chiamare quei numeri confonderebbe e basta.
+
+### Dettagli che contano
 
 - Il campo di lettura tiene **sempre** il fuoco: chi è al banco spara e basta,
   senza toccare mouse o schermo con le mani sporche.
-- Una **seconda lettura non disfa la prima**: le pistole partono da sole e un
-  doppio bip non deve rimettere in lavorazione un ordine già pronto. Per
-  tornare indietro c'è il pulsante *Rimetti in lavorazione*.
+- **Due letture troppo ravvicinate contano come una sola.** Molte pistole
+  raddoppiano il bip, e senza questa finestra un ordine appena preso in carico
+  risulterebbe subito uscito, saltando la preparazione. Si regola con
+  `secondiAntirimbalzoPistola` nella configurazione.
 - Il codice contiene l'**identificativo interno**, non il numero di comanda che
-  riparte da 1 ogni serata: una comanda rimasta in tasca da ieri non può far
-  segnare pronto l'ordine di stasera con lo stesso numero. Viene rifiutata con
-  un messaggio chiaro.
-- Se il codice è illeggibile o la carta si è rovinata, ogni ordine ha comunque
-  il pulsante **Segna pronto**.
+  riparte da 1 ogni serata: una comanda rimasta in tasca da ieri non può
+  toccare l'ordine di stasera con lo stesso numero. Viene rifiutata spiegando
+  perché.
+- Se il codice è illeggibile, ogni comanda ha comunque i pulsanti per avanzare
+  a mano, e per tornare indietro di un passo se si è sparato per sbaglio.
 - **Code 39** e non Code 128 perché le pistole economiche lo leggono senza
   doverle configurare, che sotto un tendone è quello che conta. Un test rilegge
   il codice partendo dal disegno delle barre, per essere sicuri che quello che
   stampiamo sia quello che la pistola vedrà.
+- Sulla comanda di reparto il **tavolo è stampato più grande del numero
+  d'ordine**: è l'unica cosa che dice al cameriere dove portare il vassoio.
 
 ## Prima della festa
 
@@ -250,7 +279,8 @@ cuoco deve saperlo subito.
 | Avviso "un altro computer sta incassando su..." | Due PC hanno scelto la stessa postazione: cambiala su uno dei due. L'avviso sparisce da solo entro mezzo minuto. |
 | La pistola non legge il codice | Controlla che la stampante non stia stampando troppo chiaro, e che il lettore abbia il Code 39 abilitato (di solito lo è di serie). Intanto usa il pulsante *Segna pronto*. |
 | La pistola scrive nel posto sbagliato | Il campo di lettura ha perso il fuoco: clicca una volta dentro. Torna da solo dopo ogni lettura. |
-| Un numero non compare sul monitor | Manca ancora un reparto: la postazione lo dice, "manca ancora: Bar". |
+| Un numero non compare sui ritiri | Manca ancora un reparto, oppure è un ordine al tavolo: quelli li porta il cameriere e non si chiamano. |
+| Il monitor mostra porzioni che sono già uscite | Il reparto ha sparato una volta sola: la seconda sparata, quella dell’uscita del vassoio, non è stata fatta. |
 | "Nessuna serata aperta" | *Gestione → Serata → Apri serata*. |
 
 ## Nota fiscale
@@ -264,7 +294,7 @@ ufficiale.
 ## Sviluppo
 
 ```bash
-npm test                          # 81 test: stampa, ordini, magazzino, report, reparti
+npm test                          # 85 test: stampa, ordini, magazzino, report, reparti
 node --no-warnings src/seed.js --reset   # riparte da un menu di esempio pulito
 ```
 
